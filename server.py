@@ -6,6 +6,7 @@ Requirements: pip install websockets aiohttp
 """
 
 import asyncio
+import os
 import json
 import time
 import math
@@ -321,12 +322,28 @@ def create_rest_app():
 
     app.middlewares.append(cors_middleware)
 
-    # Routes
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    async def handle_index(request):
+        return web.FileResponse(os.path.join(BASE_DIR, 'index.html'))
+
+    async def handle_css(request):
+        return web.FileResponse(os.path.join(BASE_DIR, 'index.css'))
+
+    # API Routes
     app.router.add_get('/api/ping', handle_ping)
     app.router.add_get('/api/telemetry', handle_telemetry)
     app.router.add_post('/api/command', handle_command)
     app.router.add_get('/api/status', handle_status)
     app.router.add_post('/api/reset', handle_reset)
+
+    # Web Dashboard Static Frontend Routes (http://localhost:8080)
+    app.router.add_get('/', handle_index)
+    app.router.add_get('/index.html', handle_index)
+    app.router.add_get('/index.css', handle_css)
+    js_dir = os.path.join(BASE_DIR, 'js')
+    if os.path.isdir(js_dir):
+        app.router.add_static('/js', path=js_dir)
 
     return app
 
@@ -335,7 +352,7 @@ def create_rest_app():
 async def main():
     WS_HOST = '0.0.0.0'
     WS_PORT = 8765
-    REST_PORT = 8080
+    REST_PORT = 8973
 
     # Start WebSocket server
     ws_server = await websockets.serve(ws_handler, WS_HOST, WS_PORT)
@@ -344,19 +361,19 @@ async def main():
     # Start broadcast loop
     broadcast_task = asyncio.create_task(ws_broadcast_loop())
 
-    # Start REST server
+    # Start REST & Web Dashboard server
     rest_app = create_rest_app()
     runner = web.AppRunner(rest_app)
     await runner.setup()
     rest_site = web.TCPSite(runner, WS_HOST, REST_PORT)
     await rest_site.start()
-    logger.info(f"✅ REST API server running on http://{WS_HOST}:{REST_PORT}/api")
+    logger.info(f"✅ Web Dashboard & REST server running on http://{WS_HOST}:{REST_PORT}")
 
     logger.info("=" * 60)
-    logger.info("  CHINTU Robot Control Server is READY")
-    logger.info(f"  WebSocket:  ws://localhost:{WS_PORT}")
-    logger.info(f"  REST API:   http://localhost:{REST_PORT}/api")
-    logger.info(f"  Dashboard:  Open index.html in your browser")
+    logger.info("  🤖 CHINTU Robot Control Platform is READY")
+    logger.info(f"  👉 Web Dashboard:  http://localhost:{REST_PORT}")
+    logger.info(f"  👉 REST API:        http://localhost:{REST_PORT}/api")
+    logger.info(f"  👉 WebSocket:       ws://localhost:{WS_PORT}")
     logger.info("=" * 60)
 
     # Keep running forever

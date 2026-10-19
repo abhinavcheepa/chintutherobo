@@ -13,7 +13,7 @@ const AppState = {
         host: 'localhost',
         port: 8765,
         latency: 0,
-        restBaseUrl: 'http://localhost:8080/api',
+        restBaseUrl: 'http://localhost:8973/api',
         restPollInterval: null,
     },
     robot: {
