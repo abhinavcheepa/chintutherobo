@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Chintu - Web-based control dashboard for a two-wheeled legged hybrid robot. Real-time telemetry, simulation controls, and multi-protocol communication.">
+    <title>CHINTU — Robot Control Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <!-- Ambient Background Effects -->
+    <div class="ambient-bg">
+        <div class="ambient-orb ambient-orb-1"></div>
+        <div class="ambient-orb ambient-orb-2"></div>
+        <div class="ambient-orb ambient-orb-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header id="topbar" class="topbar">
+        <div class="topbar-left">
+            <div class="robot-icon-wrap" id="robotIconWrap">
+                <svg class="robot-icon" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" stroke="url(#iconGrad)" stroke-width="2" fill="rgba(0,240,255,0.05)"/>
+                    <rect x="14" y="14" width="20" height="16" rx="4" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <circle cx="19" cy="21" r="2.5" fill="var(--accent-cyan)">
+                        <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="29" cy="21" r="2.5" fill="var(--accent-cyan)">
+                        <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+                    </circle>
+                    <line x1="18" y1="27" x2="30" y2="27" stroke="var(--accent-cyan)" stroke-width="1.2" stroke-linecap="round"/>
+                    <line x1="24" y1="10" x2="24" y2="14" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <circle cx="24" cy="9" r="2" fill="var(--neon-green)">
+                        <animate attributeName="r" values="2;3;2" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <rect x="10" y="32" width="8" height="6" rx="2" fill="none" stroke="var(--accent-blue)" stroke-width="1"/>
+                    <rect x="30" y="32" width="8" height="6" rx="2" fill="none" stroke="var(--accent-blue)" stroke-width="1"/>
+                    <circle cx="14" cy="40" r="3" fill="none" stroke="var(--neon-green)" stroke-width="1.2"/>
+                    <circle cx="34" cy="40" r="3" fill="none" stroke="var(--neon-green)" stroke-width="1.2"/>
+                    <defs>
+                        <linearGradient id="iconGrad" x1="0" y1="0" x2="48" y2="48">
+                            <stop offset="0%" stop-color="var(--accent-cyan)"/>
+                            <stop offset="100%" stop-color="var(--accent-blue)"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div class="topbar-title">
+                <h1>CHINTU</h1>
+                <span class="topbar-subtitle">Two-Wheeled Legged Hybrid Robot</span>
+            </div>
+        </div>
+        <div class="topbar-center">
+            <div class="connection-status" id="connectionStatus">
+                <span class="conn-dot" id="connDot"></span>
+                <span class="conn-label" id="connLabel">Disconnected</span>
+            </div>
+            <div class="conn-meta">
+                <span class="conn-badge" id="connProtocol">—</span>
+                <span class="conn-latency" id="connLatency">— ms</span>
+                <span class="conn-signal" id="connSignal">
+                    <svg viewBox="0 0 20 16" width="20" height="16">
+                        <rect x="0" y="12" width="3" height="4" rx="1" fill="var(--text-muted)"/>
+                        <rect x="5" y="8" width="3" height="8" rx="1" fill="var(--text-muted)"/>
+                        <rect x="10" y="4" width="3" height="12" rx="1" fill="var(--text-muted)"/>
+                        <rect x="15" y="0" width="3" height="16" rx="1" fill="var(--text-muted)"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="mode-switcher" id="modeSwitcher">
+                <button class="mode-btn active" data-mode="simulation" id="btnModeSim">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    SIM
+                </button>
+                <button class="mode-btn" data-mode="hybrid" id="btnModeHybrid">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    HYBRID
+                </button>
+                <button class="mode-btn" data-mode="realtime" id="btnModeReal">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    LIVE
+                </button>
+            </div>
+            <button class="topbar-btn" id="btnSettings" title="Settings">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Robot Status Card -->
+            <div class="card card-status" id="cardStatus">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <h2>ROBOT STATUS</h2>
+                    <span class="status-indicator online" id="systemStatusDot"></span>
+                </div>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">SYSTEM</span>
+                        <span class="status-value ok" id="statusSystem">OK</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">⚡ POWER</span>
+                        <div class="battery-bar-wrap">
+                            <div class="battery-bar" id="batteryBar" style="width: 84%"></div>
+                        </div>
+                        <span class="status-value" id="statusPower">84%</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">🌡️ TEMP</span>
+                        <span class="status-value" id="statusTemp">31°C</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">⏱️ UPTIME</span>
+                        <span class="status-value" id="statusUptime">0h 0m</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">📡 IMU</span>
+                        <span class="status-value ok" id="statusIMU">Active</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">🔄 FREQ</span>
+                        <span class="status-value" id="statusFreq">100 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection Modes Card -->
+            <div class="card card-connection" id="cardConnection">
+                <div class="card-header">
+                    <span class="card-icon">📡</span>
+                    <h2>CONNECTION</h2>
+                </div>
+                <div class="conn-modes">
+                    <button class="conn-mode-btn" id="btnWebSocket" data-protocol="websocket">
+                        <div class="conn-mode-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <div class="conn-mode-info">
+                            <span class="conn-mode-name">WebSocket</span>
+                            <span class="conn-mode-desc">Real-time bidirectional</span>
+                        </div>
+                        <span class="conn-mode-status" id="wsStatus">●</span>
+                    </button>
+                    <button class="conn-mode-btn" id="btnRestAPI" data-protocol="rest">
+                        <div class="conn-mode-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="18" rx="2"/>
+                                <line x1="2" y1="9" x2="22" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                        </div>
+                        <div class="conn-mode-info">
+                            <span class="conn-mode-name">REST API</span>
+                            <span class="conn-mode-desc">Command / polling</span>
+                        </div>
+                        <span class="conn-mode-status" id="restStatus">●</span>
+                    </button>
+                    <button class="conn-mode-btn" id="btnBluetooth" data-protocol="bluetooth">
+                        <div class="conn-mode-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/>
+                            </svg>
+                        </div>
+                        <div class="conn-mode-info">
+                            <span class="conn-mode-name">Bluetooth</span>
+                            <span class="conn-mode-desc">Web Bluetooth API</span>
+                        </div>
+                        <span class="conn-mode-status" id="btStatus">●</span>
+                    </button>
+                </div>
+                <div class="conn-config" id="connConfig">
+                    <div class="input-group">
+                        <label for="inputHost">Host</label>
+                        <input type="text" id="inputHost" value="localhost" placeholder="IP or hostname">
+                    </div>
+                    <div class="input-group">
+                        <label for="inputPort">Port</label>
+                        <input type="number" id="inputPort" value="8765" placeholder="Port">
+                    </div>
+                    <button class="btn-connect" id="btnConnect">
+                        <span class="btn-connect-text">CONNECT</span>
+                        <span class="btn-connect-loader" id="connectLoader"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Phase Progress Tracker -->
+            <div class="card card-phases" id="cardPhases">
+                <div class="card-header">
+                    <span class="card-icon">🎯</span>
+                    <h2>PHASE TRACKER</h2>
+                </div>
+                <div class="phase-list" id="phaseList">
+                    <!-- Phases injected by JS -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER PANEL -->
+        <section class="center-panel" id="centerPanel">
+            <!-- Robot Visualization -->
+            <div class="card card-robot-viz" id="cardRobotViz">
+                <div class="card-header">
+                    <span class="card-icon">🤖</span>
+                    <h2>ROBOT VISUALIZATION</h2>
+                    <div class="viz-controls">
+                        <button class="viz-btn" id="btnResetView" title="Reset View">↺</button>
+                        <button class="viz-btn" id="btnToggleLabels" title="Toggle Labels">🏷️</button>
+                    </div>
+                </div>
+                <div class="robot-canvas-wrap" id="robotCanvasWrap">
+                    <canvas id="robotCanvas" width="800" height="450"></canvas>
+                    <!-- Joint info overlays -->
+                    <div class="joint-overlay left-leg-overlay" id="leftLegOverlay">
+                        <div class="joint-overlay-header">Left Leg</div>
+                        <div class="joint-data">
+                            <span>Hip: <strong id="leftHipAngle">0.0°</strong></span>
+                            <span>Knee: <strong id="leftKneeAngle">0.0°</strong></span>
+                            <span>Wheel: <strong id="leftWheelRPM">0 RPM</strong></span>
+                        </div>
+                    </div>
+                    <div class="joint-overlay right-leg-overlay" id="rightLegOverlay">
+                        <div class="joint-overlay-header">Right Leg</div>
+                        <div class="joint-data">
+                            <span>Hip: <strong id="rightHipAngle">0.0°</strong></span>
+                            <span>Knee: <strong id="rightKneeAngle">0.0°</strong></span>
+                            <span>Wheel: <strong id="rightWheelRPM">0 RPM</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Row -->
+            <div class="controls-row">
+                <!-- D-Pad / Joystick Controller -->
+                <div class="card card-controls" id="cardControls">
+                    <div class="card-header">
+                        <span class="card-icon">🎮</span>
+                        <h2>MOVEMENT CONTROL</h2>
+                    </div>
+                    <div class="control-area">
+                        <div class="dpad-container" id="dpadContainer">
+                            <button class="dpad-btn dpad-up" id="btnUp" data-dir="forward">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+                            </button>
+                            <button class="dpad-btn dpad-left" id="btnLeft" data-dir="left">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M4 12l8-8v5h8v6h-8v5z"/></svg>
+                            </button>
+                            <button class="dpad-btn dpad-center" id="btnStop" data-dir="stop">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                            </button>
+                            <button class="dpad-btn dpad-right" id="btnRight" data-dir="right">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 12l-8-8v5H4v6h8v5z"/></svg>
+                            </button>
+                            <button class="dpad-btn dpad-down" id="btnDown" data-dir="backward">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 20l8-8h-5V4H9v8H4z"/></svg>
+                            </button>
+                        </div>
+                        <div class="speed-control">
+                            <label for="speedSlider">SPEED</label>
+                            <input type="range" id="speedSlider" min="0" max="100" value="50">
+                            <div class="speed-value"><span id="speedValue">50</span>%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation / Joint Controls -->
+                <div class="card card-sim-controls" id="cardSimControls">
+                    <div class="card-header">
+                        <span class="card-icon">🔧</span>
+                        <h2>JOINT & SIM CONTROLS</h2>
+                    </div>
+                    <div class="sim-controls-grid">
+                        <div class="joint-control">
+                            <label>L-Hip</label>
+                            <input type="range" id="sliderLHip" min="-90" max="90" value="0">
+                            <span class="jc-val" id="valLHip">0°</span>
+                        </div>
+                        <div class="joint-control">
+                            <label>R-Hip</label>
+                            <input type="range" id="sliderRHip" min="-90" max="90" value="0">
+                            <span class="jc-val" id="valRHip">0°</span>
+                        </div>
+                        <div class="joint-control">
+                            <label>L-Knee</label>
+                            <input type="range" id="sliderLKnee" min="-120" max="0" value="0">
+                            <span class="jc-val" id="valLKnee">0°</span>
+                        </div>
+                        <div class="joint-control">
+                            <label>R-Knee</label>
+                            <input type="range" id="sliderRKnee" min="-120" max="0" value="0">
+                            <span class="jc-val" id="valRKnee">0°</span>
+                        </div>
+                        <div class="sim-actions">
+                            <button class="sim-btn" id="btnSimReset" title="Reset Simulation">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 4v6h6M23 20v-6h-6"/>
+                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                                </svg>
+                                RESET
+                            </button>
+                            <button class="sim-btn sim-btn-play" id="btnSimPlay" title="Play / Pause Simulation">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                                PLAY
+                            </button>
+                            <button class="sim-btn" id="btnSimStep" title="Step Simulation">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5,4 15,12 5,20" fill="currentColor"/>
+                                    <line x1="19" y1="5" x2="19" y2="19"/>
+                                </svg>
+                                STEP
+                            </button>
+                            <button class="sim-btn sim-btn-balance" id="btnBalance" title="Toggle Balance Mode">
+                                <span>⚖️</span> BALANCE
+                            </button>
+                        </div>
+                        <!-- PID Tuning -->
+                        <div class="pid-section">
+                            <h3>PID Tuning</h3>
+                            <div class="pid-row">
+                                <div class="pid-input">
+                                    <label>Kp</label>
+                                    <input type="number" id="pidKp" value="10" step="0.1">
+                                </div>
+                                <div class="pid-input">
+                                    <label>Ki</label>
+                                    <input type="number" id="pidKi" value="0.5" step="0.01">
+                                </div>
+                                <div class="pid-input">
+                                    <label>Kd</label>
+                                    <input type="number" id="pidKd" value="2" step="0.1">
+                                </div>
+                                <button class="pid-apply" id="btnPidApply">APPLY</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Console / Log -->
+            <div class="card card-console" id="cardConsole">
+                <div class="card-header">
+                    <span class="card-icon">📋</span>
+                    <h2>COMMAND LOG</h2>
+                    <button class="console-clear" id="btnConsoleClear" title="Clear">✕</button>
+                </div>
+                <div class="console-output" id="consoleOutput">
+                    <div class="console-line info">
+                        <span class="console-time">00:00:00</span>
+                        <span class="console-msg">[SYSTEM] Chintu Control Dashboard initialized. Awaiting connection...</span>
+                    </div>
+                </div>
+                <div class="console-input-wrap">
+                    <input type="text" id="consoleInput" placeholder="Send command..." autocomplete="off">
+                    <button id="btnConsoleSend">▶</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL - Telemetry Graphs -->
+        <aside class="telemetry-panel" id="telemetryPanel">
+            <div class="card card-graph" id="cardPitch">
+                <div class="card-header">
+                    <h2>Pitch (°)</h2>
+                    <span class="graph-live-badge">LIVE</span>
+                </div>
+                <canvas id="graphPitch" width="360" height="120"></canvas>
+            </div>
+            <div class="card card-graph" id="cardWheelSpeed">
+                <div class="card-header">
+                    <h2>Wheel Speed (RPM)</h2>
+                    <span class="graph-live-badge">LIVE</span>
+                </div>
+                <canvas id="graphWheelSpeed" width="360" height="120"></canvas>
+            </div>
+            <div class="card card-graph" id="cardJointAngles">
+                <div class="card-header">
+                    <h2>Joint Angles (°)</h2>
+                    <span class="graph-live-badge">LIVE</span>
+                </div>
+                <canvas id="graphJointAngles" width="360" height="120"></canvas>
+            </div>
+            <div class="card card-graph" id="cardTorque">
+                <div class="card-header">
+                    <h2>Torque (Nm)</h2>
+                    <span class="graph-live-badge">LIVE</span>
+                </div>
+                <canvas id="graphTorque" width="360" height="120"></canvas>
+            </div>
+            <div class="card card-graph" id="cardCOM">
+                <div class="card-header">
+                    <h2>COM Trajectory</h2>
+                    <span class="graph-live-badge">LIVE</span>
+                </div>
+                <canvas id="graphCOM" width="360" height="120"></canvas>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚙️ Dashboard Settings</h2>
+                <button class="modal-close" id="btnCloseSettings">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label>Graph Update Rate (ms)</label>
+                    <input type="number" id="settingGraphRate" value="50" min="16" max="1000">
+                </div>
+                <div class="setting-group">
+                    <label>Sensor Data Points</label>
+                    <input type="number" id="settingDataPoints" value="200" min="50" max="1000">
+                </div>
+                <div class="setting-group">
+                    <label>Theme</label>
+                    <select id="settingTheme">
+                        <option value="dark">Dark (Default)</option>
+                        <option value="midnight">Midnight Blue</option>
+                        <option value="hacker">Hacker Green</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="settingAnimations" checked>
+                        Enable Animations
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>REST API Base URL</label>
+                    <input type="text" id="settingRestUrl" value="http://localhost:8080/api">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modular Application Scripts -->
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/connection.js"></script>
+    <script src="js/simulation.js"></script>
+    <script src="js/visualizer.js"></script>
+    <script src="js/telemetry.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
