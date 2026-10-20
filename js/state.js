@@ -15,6 +15,8 @@ const AppState = {
         latency: 0,
         restBaseUrl: 'http://localhost:8973/api',
         restPollInterval: null,
+        hardwareConnected: false,
+        hardwarePort: null,
     },
     robot: {
         system: 'OK',
@@ -23,6 +25,8 @@ const AppState = {
         uptime: 0,
         imuActive: true,
         freq: 100,
+        isHardware: false,
+        hardwarePort: null,
         pitch: 0,
         pitchRate: 0,
         leftHip: 0,

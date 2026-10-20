@@ -1,6 +1,6 @@
 /* ========================================
    CHINTU — Connection Manager
-   WebSocket, REST API, Bluetooth handlers
+   WebSocket, REST API, Raspberry Pi & Serial Bridge handlers
    ======================================== */
 
 // ──────────── Data Handling ────────────
@@ -21,6 +21,53 @@ function handleIncomingData(data) {
     if (data.comY !== undefined)              r.comY = data.comY;
     if (data.power !== undefined)             r.power = data.power;
     if (data.temp !== undefined)              r.temp = data.temp;
+
+    // Live Hardware Link Detection (Raspberry Pi / ESP32 Serial)
+    if (data.isHardware !== undefined) {
+        r.isHardware = Boolean(data.isHardware);
+        AppState.connection.hardwareConnected = r.isHardware;
+        AppState.connection.hardwarePort = data.hardwarePort || null;
+        updateHardwareUI(r.isHardware, data.hardwarePort);
+    }
+}
+
+function updateHardwareUI(isHardware, port) {
+    const topBadge = $('connHardware');
+    const boxBadge = $('serialStatusBadge');
+    const statStatus = $('statHwStatus');
+    const statPort = $('statHwPort');
+    const btnLink = $('btnConnectSerial');
+
+    if (topBadge) {
+        if (isHardware) {
+            topBadge.textContent = 'HW: ACTIVE';
+            topBadge.classList.add('hw-active');
+            topBadge.classList.remove('hw-sim');
+        } else {
+            topBadge.textContent = 'HW: SIM';
+            topBadge.classList.remove('hw-active');
+            topBadge.classList.add('hw-sim');
+        }
+    }
+
+    if (boxBadge) {
+        boxBadge.textContent = isHardware ? 'HARDWARE LINKED' : 'SIMULATION';
+        boxBadge.classList.toggle('active', isHardware);
+    }
+
+    if (statStatus) {
+        statStatus.textContent = isHardware ? 'Live Hardware' : 'Simulated';
+        statStatus.className = isHardware ? 'stat-active' : 'stat-sim';
+    }
+
+    if (statPort) {
+        statPort.textContent = port || (isHardware ? 'ESP32/UART' : '—');
+    }
+
+    if (btnLink) {
+        btnLink.textContent = isHardware ? 'Unlink HW' : 'Link HW';
+        btnLink.classList.toggle('linked', isHardware);
+    }
 }
 
 function sendCommand(cmd) {
@@ -33,6 +80,7 @@ function sendCommand(cmd) {
 
     switch (AppState.connection.protocol) {
         case 'websocket':
+        case 'rpi':
             if (AppState.connection.ws?.readyState === WebSocket.OPEN) {
                 AppState.connection.ws.send(payload);
             }
@@ -71,13 +119,19 @@ function setConnectionState(state) {
     switch (state) {
         case 'connected':
             dot.classList.add('connected');
-            label.textContent = `Online — ${
-                AppState.connection.protocol === 'websocket' ? 'WebSocket' :
-                AppState.connection.protocol === 'rest'      ? 'REST'      : 'Bluetooth'}`;
-            protocol.textContent = AppState.connection.protocol?.toUpperCase() || '—';
+            let protoLabel = 'WebSocket';
+            if (AppState.connection.protocol === 'rpi') protoLabel = 'Raspberry Pi';
+            else if (AppState.connection.protocol === 'rest') protoLabel = 'REST API';
+            else if (AppState.connection.protocol === 'bluetooth') protoLabel = 'Bluetooth';
+
+            label.textContent = `Online — ${protoLabel}`;
+            protocol.textContent = (AppState.connection.protocol === 'rpi' ? 'RPI' : AppState.connection.protocol)?.toUpperCase() || '—';
             connectBtn.querySelector('.btn-connect-text').textContent = 'DISCONNECT';
             updateSignalBars(4);
-            logToConsole(`[CONN] Protocol: ${AppState.connection.protocol}`, 'success');
+            logToConsole(`[CONN] Connected via: ${protoLabel}`, 'success');
+
+            // Trigger port scan from server
+            fetchSerialPorts();
             break;
         case 'connecting':
             label.textContent = 'Connecting...';
@@ -89,6 +143,7 @@ function setConnectionState(state) {
             latencyEl.textContent = '— ms';
             connectBtn.querySelector('.btn-connect-text').textContent = 'CONNECT';
             updateSignalBars(0);
+            updateHardwareUI(false, null);
             break;
     }
 
@@ -105,13 +160,16 @@ function updateSignalBars(level) {
     });
 }
 
-// ──────────── WebSocket ────────────
+// ──────────── WebSocket & Raspberry Pi ────────────
 
-function connectWebSocket() {
-    const host = $('inputHost').value || 'localhost';
-    const port = $('inputPort').value || '8765';
+function connectWebSocket(customHost = null, customPort = null) {
+    const host = customHost || $('inputHost').value || 'localhost';
+    const port = customPort || $('inputPort').value || '8765';
     AppState.connection.host = host;
     AppState.connection.port = port;
+
+    // Dynamically update REST base URL to match selected host
+    AppState.connection.restBaseUrl = `http://${host}:8973/api`;
 
     const url = `ws://${host}:${port}`;
     logToConsole(`[WS] Connecting to ${url}...`, 'info');
@@ -122,10 +180,12 @@ function connectWebSocket() {
         AppState.connection.ws = ws;
 
         ws.onopen = () => {
-            AppState.connection.protocol = 'websocket';
+            if (AppState.connection.protocol !== 'rpi') {
+                AppState.connection.protocol = 'websocket';
+            }
             setConnectionState('connected');
             logToConsole(`[WS] Connected to ${url}`, 'success');
-            ws.send(JSON.stringify({ type: 'handshake', client: 'chintu-dashboard', version: '1.0' }));
+            ws.send(JSON.stringify({ type: 'handshake', client: 'chintu-dashboard', version: '2.0' }));
         };
 
         ws.onmessage = (event) => {
@@ -135,7 +195,7 @@ function connectWebSocket() {
         };
 
         ws.onerror = () => {
-            logToConsole('[WS] Connection error', 'error');
+            logToConsole(`[WS] Connection error to ${url}`, 'error');
             setConnectionState('disconnected');
         };
 
@@ -148,6 +208,19 @@ function connectWebSocket() {
         logToConsole(`[WS] Failed: ${e.message}`, 'error');
         setConnectionState('disconnected');
     }
+}
+
+// Raspberry Pi direct connection helper
+function connectRaspberryPi() {
+    AppState.connection.protocol = 'rpi';
+    const hostInput = $('inputHost');
+    if (!hostInput.value || hostInput.value === 'localhost') {
+        hostInput.value = 'raspberrypi.local';
+    }
+    const host = hostInput.value;
+    const port = $('inputPort').value || '8765';
+    logToConsole(`[RPI] Connecting to Raspberry Pi at ${host}...`, 'info');
+    connectWebSocket(host, port);
 }
 
 // ──────────── REST API ────────────
@@ -191,7 +264,7 @@ function startRESTPolling() {
 
 async function connectBluetooth() {
     if (!navigator.bluetooth) {
-        logToConsole('[BT] Web Bluetooth API not supported', 'error');
+        logToConsole('[BT] Web Bluetooth API not supported in this browser', 'error');
         return;
     }
     logToConsole('[BT] Scanning for Chintu...', 'info');
@@ -229,6 +302,83 @@ async function connectBluetooth() {
     } catch (e) {
         logToConsole(`[BT] Failed: ${e.message}`, 'error');
         setConnectionState('disconnected');
+    }
+}
+
+// ──────────── Serial Hardware Bridge Management ────────────
+
+async function fetchSerialPorts() {
+    const select = $('selectSerialPort');
+    if (!select) return;
+
+    try {
+        const res = await fetch(`${AppState.connection.restBaseUrl}/serial/ports`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        select.innerHTML = '<option value="">Auto-Detect Port</option>';
+        if (data.ports && data.ports.length > 0) {
+            data.ports.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.device;
+                opt.textContent = `${p.device} (${p.description.substring(0, 22)})`;
+                if (data.connected_port === p.device) opt.selected = true;
+                select.appendChild(opt);
+            });
+            logToConsole(`[SERIAL] Found ${data.ports.length} serial/USB port(s)`, 'info');
+        } else {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = 'No USB/Serial ports found';
+            select.appendChild(opt);
+        }
+
+        if (data.connected_port) {
+            updateHardwareUI(true, data.connected_port);
+        }
+    } catch (e) {
+        // Silent if server is not running
+    }
+}
+
+async function toggleSerialHardware() {
+    const select = $('selectSerialPort');
+    const selectedPort = select ? select.value : '';
+
+    if (AppState.connection.hardwareConnected) {
+        // Disconnect
+        logToConsole('[SERIAL] Disconnecting hardware serial...', 'info');
+        try {
+            const res = await fetch(`${AppState.connection.restBaseUrl}/serial/disconnect`, { method: 'POST' });
+            if (res.ok) {
+                AppState.connection.hardwareConnected = false;
+                updateHardwareUI(false, null);
+                logToConsole('[SERIAL] Hardware disconnected. Switched to Simulation.', 'warning');
+            }
+        } catch (e) {
+            logToConsole(`[SERIAL] Disconnect failed: ${e.message}`, 'error');
+        }
+    } else {
+        // Connect
+        logToConsole(`[SERIAL] Linking hardware on port ${selectedPort || 'auto'}...`, 'info');
+        try {
+            const res = await fetch(`${AppState.connection.restBaseUrl}/serial/connect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ port: selectedPort || null, baud: 115200 })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                AppState.connection.hardwareConnected = true;
+                AppState.connection.hardwarePort = data.port;
+                updateHardwareUI(true, data.port);
+                logToConsole(`[SERIAL] ✅ Linked to ${data.port} at ${data.baud} baud!`, 'success');
+            } else {
+                logToConsole(`[SERIAL] ❌ ${data.message || 'Connection failed'}`, 'error');
+            }
+        } catch (e) {
+            logToConsole(`[SERIAL] Server unreachable: ${e.message}`, 'error');
+        }
     }
 }
 

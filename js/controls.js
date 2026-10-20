@@ -95,6 +95,7 @@ function setupEventListeners() {
     const btnWS = $('btnWebSocket');
     const btnRest = $('btnRestAPI');
     const btnBT = $('btnBluetooth');
+    const btnRPi = $('btnRaspberryPi');
 
     function highlightActiveProtocol(protocol) {
         document.querySelectorAll('.conn-mode-btn').forEach(btn => {
@@ -126,6 +127,45 @@ function setupEventListeners() {
         });
     }
 
+    if (btnRPi) {
+        btnRPi.addEventListener('click', () => {
+            AppState.connection.protocol = 'rpi';
+            highlightActiveProtocol('rpi');
+            const hostInput = $('inputHost');
+            if (hostInput && (!hostInput.value || hostInput.value === 'localhost')) {
+                hostInput.value = 'raspberrypi.local';
+            }
+            logToConsole('[UI] Raspberry Pi Bridge mode selected', 'info');
+        });
+    }
+
+    // IP Presets Chips (Localhost, RPi, Robot AP)
+    document.querySelectorAll('.preset-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            if ($('inputHost')) $('inputHost').value = chip.dataset.host;
+            if ($('inputPort')) $('inputPort').value = chip.dataset.port;
+            logToConsole(`[CONFIG] Preset loaded: ${chip.dataset.host}:${chip.dataset.port}`, 'info');
+        });
+    });
+
+    // Hardware Serial Bridge Buttons
+    const btnScanSerial = $('btnScanSerial');
+    if (btnScanSerial) {
+        btnScanSerial.addEventListener('click', () => {
+            logToConsole('[SERIAL] Scanning ports...', 'info');
+            fetchSerialPorts();
+        });
+    }
+
+    const btnConnectSerial = $('btnConnectSerial');
+    if (btnConnectSerial) {
+        btnConnectSerial.addEventListener('click', () => {
+            toggleSerialHardware();
+        });
+    }
+
     // Connect / Disconnect Button
     const btnConnect = $('btnConnect');
     if (btnConnect) {
@@ -137,10 +177,21 @@ function setupEventListeners() {
 
             switch (AppState.connection.protocol) {
                 case 'websocket': connectWebSocket(); break;
+                case 'rpi':       connectRaspberryPi(); break;
                 case 'rest':      connectREST(); break;
                 case 'bluetooth': connectBluetooth(); break;
                 default:
-                    logToConsole('[CONN] Please select a protocol first', 'warning');
+                    // Default to Raspberry Pi or WebSocket based on host
+                    const host = $('inputHost')?.value || '';
+                    if (host.includes('raspberry') || host.includes('192.168.')) {
+                        AppState.connection.protocol = 'rpi';
+                        highlightActiveProtocol('rpi');
+                        connectRaspberryPi();
+                    } else {
+                        AppState.connection.protocol = 'websocket';
+                        highlightActiveProtocol('websocket');
+                        connectWebSocket();
+                    }
             }
         });
     }
@@ -292,6 +343,71 @@ function setupEventListeners() {
             }
             logToConsole(`[CTRL] Balance mode ${AppState.sim.balanceMode ? 'ENABLED' : 'DISABLED'}`, AppState.sim.balanceMode ? 'success' : 'warning');
             sendCommand({ type: 'control', mode: AppState.sim.balanceMode ? 'balance' : 'manual' });
+        });
+    }
+
+    // Robot Stance Presets & E-STOP
+    const btnStand = $('btnStanceStand');
+    if (btnStand) {
+        btnStand.addEventListener('click', () => {
+            $('sliderLHip').value = 0; $('valLHip').textContent = '0°';
+            $('sliderRHip').value = 0; $('valRHip').textContent = '0°';
+            $('sliderLKnee').value = 0; $('valLKnee').textContent = '0°';
+            $('sliderRKnee').value = 0; $('valRKnee').textContent = '0°';
+            AppState.robot.leftHip = 0; AppState.robot.rightHip = 0;
+            AppState.robot.leftKnee = 0; AppState.robot.rightKnee = 0;
+            logToConsole('[POSE] 🧍 Applied Stand Pose (0°, 0°)', 'success');
+            sendCommand({ type: 'stance', stance: 'stand' });
+        });
+    }
+
+    const btnCrouch = $('btnStanceCrouch');
+    if (btnCrouch) {
+        btnCrouch.addEventListener('click', () => {
+            $('sliderLHip').value = 30; $('valLHip').textContent = '30°';
+            $('sliderRHip').value = 30; $('valRHip').textContent = '30°';
+            $('sliderLKnee').value = -60; $('valLKnee').textContent = '-60°';
+            $('sliderRKnee').value = -60; $('valRKnee').textContent = '-60°';
+            AppState.robot.leftHip = 30; AppState.robot.rightHip = 30;
+            AppState.robot.leftKnee = -60; AppState.robot.rightKnee = -60;
+            logToConsole('[POSE] 🧎 Applied Crouch Pose (30°, -60°)', 'success');
+            sendCommand({ type: 'stance', stance: 'crouch' });
+        });
+    }
+
+    const btnTiltFwd = $('btnStanceTiltFwd');
+    if (btnTiltFwd) {
+        btnTiltFwd.addEventListener('click', () => {
+            $('sliderLHip').value = -20; $('valLHip').textContent = '-20°';
+            $('sliderRHip').value = -20; $('valRHip').textContent = '-20°';
+            AppState.robot.leftHip = -20; AppState.robot.rightHip = -20;
+            logToConsole('[POSE] 📐 Applied Tilt Forward Pose (-20°)', 'info');
+            sendCommand({ type: 'stance', stance: 'tilt_fwd' });
+        });
+    }
+
+    const btnTiltBack = $('btnStanceTiltBack');
+    if (btnTiltBack) {
+        btnTiltBack.addEventListener('click', () => {
+            $('sliderLHip').value = 20; $('valLHip').textContent = '20°';
+            $('sliderRHip').value = 20; $('valRHip').textContent = '20°';
+            AppState.robot.leftHip = 20; AppState.robot.rightHip = 20;
+            logToConsole('[POSE] 📐 Applied Tilt Backward Pose (20°)', 'info');
+            sendCommand({ type: 'stance', stance: 'tilt_back' });
+        });
+    }
+
+    const btnEStop = $('btnEStop');
+    if (btnEStop) {
+        btnEStop.addEventListener('click', () => {
+            AppState.direction = null;
+            AppState.sim.balanceMode = false;
+            const btnBal = $('btnBalance');
+            if (btnBal) btnBal.classList.remove('active');
+            document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('pressed'));
+            logToConsole('🚨 EMERGENCY STOP: All Motors & Servos Cut!', 'error');
+            sendCommand({ type: 'estop' });
+            sendCommand({ type: 'move', direction: 'stop' });
         });
     }
 

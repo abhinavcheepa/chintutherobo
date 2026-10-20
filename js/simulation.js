@@ -4,10 +4,19 @@
    ======================================== */
 
 function simulationStep(dt) {
-    if (!AppState.sim.playing && !AppState.sim.balanceMode) return;
-
     const r = AppState.robot;
     const s = AppState.sim;
+
+    // If connected to physical robot / Raspberry Pi hardware, bypass simulation physics
+    // to preserve live sensor and telemetry values
+    if (r.isHardware || AppState.connection.hardwareConnected) {
+        r.comX += (r.leftWheelRPM + r.rightWheelRPM) * 0.0001 * dt;
+        r.comY  = 0.4 + Math.sin(r.pitch * Math.PI / 180) * 0.2;
+        return;
+    }
+
+    if (!AppState.sim.playing && !AppState.sim.balanceMode) return;
+
     const speedFactor = s.speed / 100;
 
     // ── Inverted pendulum dynamics ──

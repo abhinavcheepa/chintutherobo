@@ -671,6 +671,171 @@ body {
     display: block;
 }
 
+/* --- Hardware & Serial Bridge Styles --- */
+.hw-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: var(--transition-med);
+}
+
+.hw-badge.hw-sim {
+    color: var(--accent-cyan);
+    border-color: rgba(0, 240, 255, 0.3);
+    background: rgba(0, 240, 255, 0.05);
+}
+
+.hw-badge.hw-active {
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+    background: rgba(34, 255, 136, 0.15);
+    box-shadow: 0 0 10px rgba(34, 255, 136, 0.3);
+    animation: connPulse 1.5s infinite;
+}
+
+.conn-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.conn-preset-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+}
+
+.preset-chip {
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.preset-chip:hover {
+    border-color: var(--accent-cyan);
+    color: var(--text-primary);
+    background: rgba(0, 240, 255, 0.08);
+}
+
+.preset-chip.active {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.12);
+}
+
+.serial-bridge-box {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.serial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.serial-title {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.serial-badge {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(255, 59, 92, 0.15);
+    color: var(--danger-red);
+    border: 1px solid rgba(255, 59, 92, 0.3);
+    transition: var(--transition-fast);
+}
+
+.serial-badge.active {
+    background: rgba(34, 255, 136, 0.15);
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+    box-shadow: 0 0 6px rgba(34, 255, 136, 0.3);
+}
+
+.serial-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.serial-select {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    outline: none;
+}
+
+.serial-btn {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: rgba(0, 240, 255, 0.08);
+    color: var(--accent-cyan);
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.serial-btn:hover {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.serial-btn-primary {
+    background: var(--grad-btn);
+    color: var(--bg-primary);
+    border: none;
+}
+
+.serial-btn-primary.linked {
+    background: linear-gradient(135deg, var(--danger-red), #b91c1c);
+    color: #fff;
+}
+
+.serial-stats {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.serial-stats b.stat-active {
+    color: var(--neon-green);
+}
+
+.serial-stats b.stat-sim {
+    color: var(--accent-cyan);
+}
+
 /* Phase Tracker */
 .phase-list {
     display: flex;
@@ -1053,6 +1218,65 @@ body {
     border-color: var(--warning-orange);
     color: var(--warning-orange);
     background: rgba(255,140,0,0.08);
+}
+
+/* Robot Stance Actions */
+.stance-section {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: var(--gap-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stance-title {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    color: var(--accent-cyan);
+    font-weight: 700;
+}
+
+.stance-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.stance-btn {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.stance-btn:hover {
+    border-color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.1);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.stance-btn:active {
+    transform: scale(0.96);
+}
+
+.stance-btn-estop {
+    background: rgba(255, 59, 92, 0.2);
+    border-color: var(--danger-red);
+    color: var(--danger-red);
+    font-weight: 800;
+}
+
+.stance-btn-estop:hover {
+    background: var(--danger-red);
+    color: #fff;
+    box-shadow: 0 0 14px rgba(255, 59, 92, 0.5);
 }
 
 /* PID Section */

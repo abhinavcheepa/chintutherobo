@@ -61,6 +61,7 @@
             </div>
             <div class="conn-meta">
                 <span class="conn-badge" id="connProtocol">—</span>
+                <span class="conn-badge hw-badge" id="connHardware" title="Physical Robot Link">HW: SIM</span>
                 <span class="conn-latency" id="connLatency">— ms</span>
                 <span class="conn-signal" id="connSignal">
                     <svg viewBox="0 0 20 16" width="20" height="16">
@@ -192,10 +193,33 @@
                         </div>
                         <span class="conn-mode-status" id="btStatus">●</span>
                     </button>
+                    <button class="conn-mode-btn" id="btnRaspberryPi" data-protocol="rpi">
+                        <div class="conn-mode-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="3"/>
+                                <circle cx="9" cy="9" r="1.5" fill="currentColor"/>
+                                <circle cx="15" cy="9" r="1.5" fill="currentColor"/>
+                                <circle cx="9" cy="15" r="1.5" fill="currentColor"/>
+                                <circle cx="15" cy="15" r="1.5" fill="currentColor"/>
+                                <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+                            </svg>
+                        </div>
+                        <div class="conn-mode-info">
+                            <span class="conn-mode-name">Raspberry Pi</span>
+                            <span class="conn-mode-desc">WiFi / Hotspot Bridge</span>
+                        </div>
+                        <span class="conn-mode-status" id="rpiStatus">●</span>
+                    </button>
                 </div>
                 <div class="conn-config" id="connConfig">
+                    <div class="conn-presets" id="connPresets">
+                        <span class="conn-preset-label">Quick:</span>
+                        <button type="button" class="preset-chip active" data-host="localhost" data-port="8765">Localhost</button>
+                        <button type="button" class="preset-chip" data-host="raspberrypi.local" data-port="8765">Raspberry Pi</button>
+                        <button type="button" class="preset-chip" data-host="192.168.4.1" data-port="8765">Robot AP</button>
+                    </div>
                     <div class="input-group">
-                        <label for="inputHost">Host</label>
+                        <label for="inputHost">Host IP</label>
                         <input type="text" id="inputHost" value="localhost" placeholder="IP or hostname">
                     </div>
                     <div class="input-group">
@@ -206,6 +230,25 @@
                         <span class="btn-connect-text">CONNECT</span>
                         <span class="btn-connect-loader" id="connectLoader"></span>
                     </button>
+
+                    <!-- Hardware Serial Bridge Controller -->
+                    <div class="serial-bridge-box" id="serialBridgeBox">
+                        <div class="serial-header">
+                            <span class="serial-title">🤖 ROBOT HARDWARE SERIAL</span>
+                            <span class="serial-badge" id="serialStatusBadge">SIMULATION</span>
+                        </div>
+                        <div class="serial-controls">
+                            <select id="selectSerialPort" class="serial-select">
+                                <option value="">Auto-Detect Port</option>
+                            </select>
+                            <button type="button" class="serial-btn" id="btnScanSerial" title="Scan Ports">🔄</button>
+                            <button type="button" class="serial-btn serial-btn-primary" id="btnConnectSerial">Link HW</button>
+                        </div>
+                        <div class="serial-stats">
+                            <span>Status: <b id="statHwStatus" class="stat-sim">Simulated</b></span>
+                            <span>Port: <b id="statHwPort">—</b></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -338,6 +381,17 @@
                             <button class="sim-btn sim-btn-balance" id="btnBalance" title="Toggle Balance Mode">
                                 <span>⚖️</span> BALANCE
                             </button>
+                        </div>
+                        <!-- Robot Stances & Quick Actions -->
+                        <div class="stance-section">
+                            <span class="stance-title">⚡ POSES & ACTIONS</span>
+                            <div class="stance-buttons">
+                                <button type="button" class="stance-btn" id="btnStanceStand" title="Stand Up (0°, 0°)">🧍 STAND</button>
+                                <button type="button" class="stance-btn" id="btnStanceCrouch" title="Crouch (30°, -60°)">🧎 CROUCH</button>
+                                <button type="button" class="stance-btn" id="btnStanceTiltFwd" title="Tilt Forward (-20°)">📐 TILT FWD</button>
+                                <button type="button" class="stance-btn" id="btnStanceTiltBack" title="Tilt Backward (20°)">📐 TILT BACK</button>
+                                <button type="button" class="stance-btn stance-btn-estop" id="btnEStop" title="Emergency Stop All Motors">🛑 E-STOP</button>
+                            </div>
                         </div>
                         <!-- PID Tuning -->
                         <div class="pid-section">
