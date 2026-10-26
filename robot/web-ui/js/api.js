@@ -19,17 +19,55 @@ class ApiClient {
     this.commandId = 0;
   }
 
-  connect() {
+  async connect() {
     if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      return;
+    }
+
+    if (!CONFIG.AUTH_TOKEN) {
+      State.set('connStatus', 'AUTH_REQUIRED');
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) authModal.classList.remove('hidden');
       return;
     }
 
     const host = window.location.hostname || '127.0.0.1';
     const port = window.location.port || CONFIG.WS_PORT;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${host}:${port}/ws?token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const httpProtocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
 
     State.set('connStatus', 'CONNECTING');
+
+    // 1. Fetch single-use ticket via POST /api/ws-ticket
+    let ticket = null;
+    try {
+      const res = await fetch(`${httpProtocol}//${host}:${port}/api/ws-ticket`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CONFIG.AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.status === 401) {
+        State.set('connStatus', 'AUTH_FAILED');
+        State.addLog('NET', 'Authentication failed: invalid supervisor token.');
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.classList.remove('hidden');
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: Failed to fetch WebSocket ticket`);
+      }
+      const data = await res.json();
+      ticket = data.ticket;
+    } catch (err) {
+      console.warn('Failed to obtain WebSocket ticket:', err);
+      State.set('connStatus', 'DISCONNECTED');
+      this.scheduleReconnect();
+      return;
+    }
+
+    const wsUrl = `${wsProtocol}//${host}:${port}/ws?ticket=${encodeURIComponent(ticket)}`;
 
     try {
       this.ws = new WebSocket(wsUrl);

@@ -7,12 +7,14 @@ and automatic fail-safe disarming.
 import time
 import asyncio
 import logging
-from typing import Set, Dict, Any, Optional
+import secrets
+from typing import Set, Dict, Any, Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, status, Header, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.config import (
@@ -22,7 +24,8 @@ from backend.config import (
     DISARM_ON_DISCONNECT_TIMEOUT_S, MAX_PAYLOAD_BYTES,
     LEG_HEIGHT_MIN_MM, LEG_HEIGHT_MAX_MM, LEG_HEIGHT_NOMINAL_MM,
     MAX_ROLL_TRIM_RAD, SPEED_LIMIT_FREE_RUN_MPS, SPEED_LIMIT_GATED_MPS,
-    MAX_YAW_RATE_RAD_S, SSL_CERT_FILE, SSL_KEY_FILE
+    MAX_YAW_RATE_RAD_S, SSL_CERT_FILE, SSL_KEY_FILE,
+    CORS_ORIGINS, ALLOWED_HOSTS, ENVIRONMENT
 )
 from backend.serial_manager import SerialManager
 from backend.logger import BlackboxLogger
@@ -67,14 +70,132 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Self-Balancing Wheel-Leg Robot Supervisor", lifespan=lifespan)
 
-# Allow cross-origin requests for flexible development
+# Defense against DNS rebinding attacks
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=ALLOWED_HOSTS
+)
+
+# Strict CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+# --- In-Memory Single-Use WebSocket Ticket Store ---
+TICKET_TTL_S = 30.0
+MAX_OUTSTANDING_TICKETS = 8
+TICKET_RATE_LIMIT_HZ = 20.0
+ws_tickets: Dict[str, float] = {}  # ticket -> expiry_timestamp
+ticket_request_history: List[float] = []
+
+
+def clean_expired_tickets() -> None:
+    now = time.time()
+    expired = [t for t, exp in list(ws_tickets.items()) if now > exp]
+    for t in expired:
+        ws_tickets.pop(t, None)
+
+
+def validate_and_consume_ticket(ticket: str) -> bool:
+    clean_expired_tickets()
+    if not ticket:
+        return False
+    exp = ws_tickets.pop(ticket, None)
+    if exp is None:
+        return False
+    return time.time() <= exp
+
+
+def verify_bearer_auth(authorization: Optional[str] = Header(None)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or malformed Authorization header. Expected Bearer token."
+        )
+    provided_token = authorization[7:].strip()
+    if not secrets.compare_digest(provided_token, AUTH_TOKEN):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization credentials."
+        )
+    return provided_token
+
+
+# --- REST Endpoints ---
+
+@app.get("/api/health")
+async def api_health():
+    """Minimal unauthenticated health check endpoint."""
+    return {"status": "ok", "time": time.time()}
+
+
+@app.post("/api/ws-ticket")
+async def create_ws_ticket(_token: str = Depends(verify_bearer_auth)):
+    """Issues a short-lived, single-use ticket for WebSocket authentication over HTTPS."""
+    clean_expired_tickets()
+
+    now = time.time()
+    global ticket_request_history
+    ticket_request_history = [t for t in ticket_request_history if now - t < 1.0]
+    if len(ticket_request_history) >= TICKET_RATE_LIMIT_HZ:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded for ticket generation."
+        )
+    ticket_request_history.append(now)
+
+    if len(ws_tickets) >= MAX_OUTSTANDING_TICKETS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many outstanding tickets. Try again later."
+        )
+
+    ticket = secrets.token_urlsafe(32)
+    ws_tickets[ticket] = now + TICKET_TTL_S
+    return {"ticket": ticket, "expires_in": int(TICKET_TTL_S)}
+
+
+@app.get("/api/telemetry/latest")
+async def api_telemetry_latest(_token: str = Depends(verify_bearer_auth)):
+    """Returns the latest telemetry frame with Bearer authentication."""
+    telem = serial_mgr.latest_telemetry
+    if not telem:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No telemetry available")
+    return {
+        "state_code": telem.current_state,
+        "pitch_deg": telem.pitch_deg,
+        "pitch_rate_dps": telem.pitch_rate_dps,
+        "roll_deg": telem.roll_deg,
+        "yaw_rate_dps": telem.yaw_rate_dps,
+        "wheel_pos_l": telem.wheel_pos_l,
+        "wheel_pos_r": telem.wheel_pos_r,
+        "wheel_vel_l": telem.wheel_vel_l,
+        "wheel_vel_r": telem.wheel_vel_r,
+        "leg_pos_l": telem.leg_pos_l,
+        "leg_pos_r": telem.leg_pos_r,
+        "v_batt_mv": telem.v_batt_mv,
+        "error_flags": telem.error_flags,
+        "loop_jitter_us": telem.loop_jitter_us,
+        "last_cmd_id": telem.last_cmd_id,
+        "last_rx_time": serial_mgr.last_rx_time
+    }
+
+
+@app.get("/api/system/info")
+async def api_system_info(_token: str = Depends(verify_bearer_auth)):
+    """Returns system supervisor info with Bearer authentication."""
+    return {
+        "environment": ENVIRONMENT,
+        "server_time": time.time(),
+        "serial_connected": serial_mgr.is_connected,
+        "serial_port": serial_mgr.port,
+        "active_clients": len(active_connections),
+        "has_primary_controller": primary_controller_ws is not None
+    }
 
 
 # --- Strict Pydantic Data Models with Validation & Bounds ---
@@ -183,13 +304,20 @@ async def browser_command_watchdog():
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
+    ticket: Optional[str] = Query(None),
     token: Optional[str] = Query(None)
 ):
     global primary_controller_ws, last_valid_command_time, cmd_sequence_id, disconnect_disarm_task
 
-    # 1. Token Authentication Check
-    if token != AUTH_TOKEN:
-        logger.warning("Unauthorized WebSocket connection rejected: invalid token '%s'", token)
+    # 1. Strictly reject legacy ?token= parameter
+    if token is not None:
+        logger.warning("Rejected WebSocket connection: legacy query parameter '?token=' is prohibited.")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # 2. Validate and consume single-use ticket (accepts ONLY ?ticket=)
+    if not ticket or not validate_and_consume_ticket(ticket):
+        logger.warning("Rejected WebSocket connection: missing, invalid, or expired ticket.")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 

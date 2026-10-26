@@ -331,6 +331,27 @@ class ApplicationController {
   bindSettings() {
     const tokenInput = document.getElementById('settings-auth-token');
     const btnSaveToken = document.getElementById('btn-save-token');
+    const authModal = document.getElementById('auth-modal');
+    const authInput = document.getElementById('auth-token-input');
+    const btnAuthSubmit = document.getElementById('btn-auth-submit');
+
+    // Auth modal handler (first load / session auth prompt)
+    if (btnAuthSubmit && authInput) {
+      const handleAuth = () => {
+        const val = authInput.value.trim();
+        if (val) {
+          CONFIG.AUTH_TOKEN = val;
+          if (tokenInput) tokenInput.value = val;
+          if (authModal) authModal.classList.add('hidden');
+          State.addLog('AUTH', 'Supervisor token set in JS memory.');
+          Api.connect();
+        }
+      };
+      btnAuthSubmit.addEventListener('click', handleAuth);
+      authInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleAuth();
+      });
+    }
 
     if (tokenInput) {
       tokenInput.value = CONFIG.AUTH_TOKEN;
@@ -340,8 +361,8 @@ class ApplicationController {
       btnSaveToken.addEventListener('click', () => {
         const val = tokenInput.value.trim();
         CONFIG.AUTH_TOKEN = val;
-        State.addLog('CONFIG', 'Updated authentication token in browser storage.');
-        alert('Authentication token saved. Reconnecting WebSocket...');
+        State.addLog('CONFIG', 'Updated authentication token in JS memory.');
+        alert('Authentication token saved in memory. Reconnecting WebSocket...');
         if (Api.ws) Api.ws.close();
       });
     }

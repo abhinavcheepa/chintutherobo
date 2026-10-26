@@ -458,7 +458,7 @@
               <button id="btn-save-token" class="btn-primary" style="min-height: 40px; padding: 0 16px;">SAVE TOKEN</button>
             </div>
             <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">
-              Token is saved locally in browser storage. Note: Real Wi-Fi perimeter security is enforced by the Raspberry Pi hotspot WPA2 password.
+              Token is held in JavaScript memory only for this session (never written to localStorage, sessionStorage, or URL per Decision D3).
             </p>
           </div>
           <div style="margin-bottom: 12px;">
@@ -484,6 +484,20 @@
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button id="btn-modal-cancel" class="btn-secondary" style="flex: 1;">CANCEL</button>
         <button id="btn-modal-confirm" class="btn-primary" style="background: var(--color-warning); color: #000; flex: 1;">OVERRIDE &amp; SEND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Supervisor Authentication (Held in Memory Only per D3) -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <h3 style="color: #60a5fa; margin-bottom: 10px;">🔐 Supervisor Authentication</h3>
+      <p style="color: var(--text-muted); margin-bottom: 14px; font-size: 0.85rem;">
+        Enter the robot supervisor authentication token to connect. The token is held in JS memory only for this session (never persisted to disk or URL per Decision D3).
+      </p>
+      <input type="password" id="auth-token-input" class="tune-input-num" placeholder="Enter ROBOT_AUTH_TOKEN" style="width: 100%; text-align: left; padding: 0 10px; margin-bottom: 14px;">
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="btn-auth-submit" class="btn-primary" style="flex: 1;">CONNECT</button>
       </div>
     </div>
   </div>
