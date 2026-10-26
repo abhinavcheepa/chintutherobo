@@ -41,9 +41,8 @@ A production-grade, distributed embedded robotics stack for a two-legged self-ba
 | **Left Hip Pitch**| SERVO 2 | **Pin 45** | Output (Timer5 PWM) | MG995 Thigh Flexion |
 | **Left Knee** | SERVO 3 | **Pin 46** | Output (Timer5 PWM) | MG995 Knee Flexion |
 | **Right Hip Roll**| SERVO 4 | **Pin 11** | Output (Timer5 PWM) | MG995 Lateral Roll |
-| **Right Hip Pitch**| SERVO 5 | **Pin 12** | Output (Timer5 PWM) | MG995 Thigh Flexion |
-| **Right Knee** | SERVO 6 | **Pin 13** | Output (Timer5 PWM) | MG995 Knee Flexion |
-| **DC Bus Sensor** | V_DIV | **Pin A0** | Analog Input | Voltage divider to 12.6V battery |
+| **Right Knee** | SERVO 6 | **Pin 38** | Output (PWM) | MG995 Knee Flexion *(NEEDS PHYSICAL WIRING CHECK: Pin 13 is onboard LED)* |
+| **Status LED** | LED | **Pin 13** | Output (Digital) | ATmega2560 Onboard Status Indicator |
 | **Hardware E-STOP**| ESTOP | **Pin 2** | Input (Pull-up) | Normally closed to GND; trip on open |
 
 ---
