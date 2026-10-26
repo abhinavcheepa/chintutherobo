@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <avr/wdt.h>
 #include "config.h"
 #include "protocol.h"
 #include "safety.h"
@@ -9,6 +10,18 @@
 #include "stepper_isr.h"
 #include "balance.h"
 #include "comms.h"
+
+// Early WDT reset hook in .init3 section.
+// Stock Mega2560 bootloaders do not clear MCUSR or disable WDT upon a watchdog reset,
+// causing a persistent bootloop. This function runs before C runtime startup to clear
+// MCUSR and disable the watchdog immediately on reset.
+// NOTE: If a board bootloops due to bootloader incompatibility, the recovery path
+// is reflashing the bootloader or firmware via an external ISP programmer.
+void early_wdt_disable(void) __attribute__((naked)) __attribute__((section(".init3")));
+void early_wdt_disable(void) {
+    MCUSR = 0;
+    wdt_disable();
+}
 
 // Loop timing registers
 static uint32_t last_balance_tick_us = 0;
@@ -32,7 +45,7 @@ void setup() {
 
     // 3. Initialize Sensors
     IMU.init();
-    // Calibrate stationary gyro bias
+    // Calibrate stationary gyro bias (blocking ~600ms, runs BEFORE watchdog enable)
     IMU.calibrate_gyro(300);
 
     // 4. Initialize State Estimator
@@ -47,9 +60,15 @@ void setup() {
 
     last_balance_tick_us = micros();
     last_telemetry_tick_ms = millis();
+
+    // Enable AVR hardware watchdog (500ms timeout) only AFTER all blocking setup completes
+    wdt_enable(WDTO_500MS);
 }
 
 void loop() {
+    // Feed AVR hardware watchdog on each loop iteration
+    wdt_reset();
+
     uint32_t now_us = micros();
     uint32_t now_ms = millis();
 
@@ -68,8 +87,16 @@ void loop() {
             peak_loop_jitter_us = abs_jitter;
         }
 
-        // 2.1 Sensor Read
-        IMU.read_sensor();
+        // 2.1 Sensor Read (track consecutive I2C read failures -> STATE_FAULT)
+        static uint8_t imu_fail_count = 0;
+        if (!IMU.read_sensor()) {
+            imu_fail_count++;
+            if (imu_fail_count >= 5) {
+                Safety.trigger_fault(ERROR_FLAG_SENSOR);
+            }
+        } else {
+            imu_fail_count = 0;
+        }
 
         // 2.2 State Estimation
         Estimator.update(
@@ -88,6 +115,11 @@ void loop() {
 
         // 2.4 Control & Kinematics Execution
         if (Safety.is_armed()) {
+#if (FAULT_SERVO_MODE == FAULT_SERVO_MODE_DETACH)
+            if (!Servos.is_attached()) {
+                Servos.attach_all();
+            }
+#endif
             const CmdMotionPayload &cmd = Comms.get_latest_motion_cmd();
 
             // Leg IK Solutions
@@ -126,12 +158,28 @@ void loop() {
             Balance.reset();
             Comms.zero_motion_cmd();
 
+#if (FAULT_SERVO_MODE == FAULT_SERVO_MODE_DETACH)
+            if (Safety.get_state() == STATE_FAULT) {
+                // Eliminate pinch torque and servo burnout risk by detaching PWM
+                Servos.detach_all();
+            } else {
+                if (!Servos.is_attached()) {
+                    Servos.attach_all();
+                }
+                LegJointAngles nominal_l, nominal_r;
+                LegsIK.solve_leg_ik(LEG_HEIGHT_NOMINAL_MM, 0.0f, 0.0f, true, nominal_l);
+                LegsIK.solve_leg_ik(LEG_HEIGHT_NOMINAL_MM, 0.0f, 0.0f, false, nominal_r);
+                Servos.set_target_joints_left(nominal_l);
+                Servos.set_target_joints_right(nominal_r);
+            }
+#else
             // Slew servos to safe neutral nominal stance
             LegJointAngles nominal_l, nominal_r;
             LegsIK.solve_leg_ik(LEG_HEIGHT_NOMINAL_MM, 0.0f, 0.0f, true, nominal_l);
             LegsIK.solve_leg_ik(LEG_HEIGHT_NOMINAL_MM, 0.0f, 0.0f, false, nominal_r);
             Servos.set_target_joints_left(nominal_l);
             Servos.set_target_joints_right(nominal_r);
+#endif
         }
 
         // 2.5 Actuator Dynamic Updates (Only ramp steppers when armed)

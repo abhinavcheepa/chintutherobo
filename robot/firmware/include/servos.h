@@ -20,7 +20,13 @@ public:
     // Current filtered positions in degrees
     float get_joint_angle_deg(uint8_t servo_idx) const;
 
+    // Power detachment / attachment for FAULT_SERVO_MODE
+    void detach_all();
+    void attach_all();
+    bool is_attached() const { return is_attached_; }
+
 private:
+    bool is_attached_;
     Servo servo_hip_roll_l_;
     Servo servo_hip_pitch_l_;
     Servo servo_knee_l_;

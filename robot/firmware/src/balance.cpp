@@ -1,4 +1,5 @@
 #include "balance.h"
+#include <EEPROM.h>
 #include <math.h>
 
 BalanceController Balance;

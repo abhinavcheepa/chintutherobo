@@ -3,7 +3,8 @@
 
 ServoController Servos;
 
-ServoController::ServoController() {
+ServoController::ServoController()
+    : is_attached_(false) {
     for (uint8_t i = 0; i < 6; i++) {
         target_angles_[i] = 0.0f;
         current_angles_[i] = 0.0f;
@@ -12,18 +13,38 @@ ServoController::ServoController() {
 }
 
 void ServoController::init() {
-    servo_hip_roll_l_.attach(PIN_SERVO_HIP_ROLL_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-    servo_hip_pitch_l_.attach(PIN_SERVO_HIP_PITCH_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-    servo_knee_l_.attach(PIN_SERVO_KNEE_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-
-    servo_hip_roll_r_.attach(PIN_SERVO_HIP_ROLL_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-    servo_hip_pitch_r_.attach(PIN_SERVO_HIP_PITCH_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-    servo_knee_r_.attach(PIN_SERVO_KNEE_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+    attach_all();
 
     // Initial neutral positions
     for (uint8_t i = 0; i < 6; i++) {
         target_angles_[i] = 0.0f;
         current_angles_[i] = 0.0f;
+    }
+}
+
+void ServoController::attach_all() {
+    if (!is_attached_) {
+        servo_hip_roll_l_.attach(PIN_SERVO_HIP_ROLL_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+        servo_hip_pitch_l_.attach(PIN_SERVO_HIP_PITCH_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+        servo_knee_l_.attach(PIN_SERVO_KNEE_L, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+
+        servo_hip_roll_r_.attach(PIN_SERVO_HIP_ROLL_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+        servo_hip_pitch_r_.attach(PIN_SERVO_HIP_PITCH_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+        servo_knee_r_.attach(PIN_SERVO_KNEE_R, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+        is_attached_ = true;
+    }
+}
+
+void ServoController::detach_all() {
+    if (is_attached_) {
+        servo_hip_roll_l_.detach();
+        servo_hip_pitch_l_.detach();
+        servo_knee_l_.detach();
+
+        servo_hip_roll_r_.detach();
+        servo_hip_pitch_r_.detach();
+        servo_knee_r_.detach();
+        is_attached_ = false;
     }
 }
 
@@ -78,12 +99,14 @@ void ServoController::update(float dt) {
         }
     }
 
-    // Write pulses to hardware servo instances
-    servo_hip_roll_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[0], 0, false));
-    servo_hip_pitch_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[1], 1, false));
-    servo_knee_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[2], 2, false));
+    // Write pulses to hardware servo instances if attached
+    if (is_attached_) {
+        servo_hip_roll_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[0], 0, false));
+        servo_hip_pitch_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[1], 1, false));
+        servo_knee_l_.writeMicroseconds(angle_to_pulse_us(current_angles_[2], 2, false));
 
-    servo_hip_roll_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[3], 3, true));
-    servo_hip_pitch_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[4], 4, true));
-    servo_knee_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[5], 5, true));
+        servo_hip_roll_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[3], 3, true));
+        servo_hip_pitch_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[4], 4, true));
+        servo_knee_r_.writeMicroseconds(angle_to_pulse_us(current_angles_[5], 5, true));
+    }
 }

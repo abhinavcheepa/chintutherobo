@@ -36,6 +36,7 @@
 #define ERROR_FLAG_LOW_BATT  0x04
 #define ERROR_FLAG_MOTOR     0x08
 #define ERROR_FLAG_ESTOP     0x10
+#define ERROR_FLAG_SENSOR    0x20
 
 #pragma pack(push, 1)
 

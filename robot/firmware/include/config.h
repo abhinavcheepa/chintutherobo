@@ -102,6 +102,20 @@
 #define TRIM_SERVO_KNEE_R       0
 
 // ============================================================================
+// SERVO BEHAVIOR ON FAULT / E-STOP (Option D2)
+// ============================================================================
+// FAULT_SERVO_MODE_SLEW_NOMINAL (0): Servos actively slew and hold nominal standing posture under power.
+//   Tradeoff: Robot remains upright if mechanically possible, but servos will fight against mechanical jams
+//   or obstacles, potentially overloading the 6V BEC or stripping gears.
+// FAULT_SERVO_MODE_DETACH (1): Servos immediately detach PWM signal, cutting all torque.
+//   Tradeoff: Eliminates pinch hazard and servo burn-out on motor stall, but robot legs go limp and
+//   the chassis will collapse to the floor.
+#define FAULT_SERVO_MODE_SLEW_NOMINAL 0
+#define FAULT_SERVO_MODE_DETACH       1
+
+#define FAULT_SERVO_MODE              FAULT_SERVO_MODE_SLEW_NOMINAL
+
+// ============================================================================
 // EEPROM STORAGE CONFIGURATION
 // ============================================================================
 #define EEPROM_MAGIC_HEADER       0xBEEF2560UL

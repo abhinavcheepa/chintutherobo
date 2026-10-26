@@ -2,6 +2,17 @@
 #include "stepper_isr.h"
 
 SafetyManager Safety;
+volatile bool SafetyManager::estop_latched_ = false;
+
+// Hardware E-STOP ISR on Pin 2 (INT4 / FALLING)
+// Minimal and ISR-safe: sets latch, cuts motor torque, and halts timer interrupts.
+// No Serial, no Wire, no millis().
+void SafetyManager::estop_isr() {
+    estop_latched_ = true;
+    digitalWrite(PIN_STEPPER_ENABLE, HIGH);
+    TIMSK3 &= ~(1 << OCIE3A);
+    TIMSK4 &= ~(1 << OCIE4A);
+}
 
 SafetyManager::SafetyManager()
     : current_state_(STATE_DISARMED),
@@ -16,6 +27,8 @@ void SafetyManager::init() {
     digitalWrite(PIN_STEPPER_ENABLE, HIGH);
     
     pinMode(PIN_HARDWARE_ESTOP, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(PIN_HARDWARE_ESTOP), estop_isr, FALLING);
+    estop_latched_ = false;
     
     current_state_ = STATE_DISARMED;
     error_flags_ = ERROR_FLAG_NONE;
@@ -24,8 +37,9 @@ void SafetyManager::init() {
 }
 
 void SafetyManager::update(uint32_t now_ms, float current_pitch_deg, float current_roll_deg, uint16_t v_batt_mv) {
-    // 1. Hardware E-STOP Pin check (Active LOW if pressed or pulled low)
-    if (digitalRead(PIN_HARDWARE_ESTOP) == LOW) {
+    // 1. Hardware E-STOP interrupt latch & polling fallback (Active LOW)
+    if (estop_latched_ || digitalRead(PIN_HARDWARE_ESTOP) == LOW) {
+        estop_latched_ = true;
         trigger_estop(4); // Hardware E-stop reason
         return;
     }
@@ -82,8 +96,13 @@ bool SafetyManager::request_state_transition(uint8_t new_state, bool force) {
         return true;
     }
 
-    // Clearing faults
+    // Clearing faults (operator explicit transition sequence)
     if (new_state == STATE_DISARMED && current_state_ == STATE_FAULT) {
+        if (digitalRead(PIN_HARDWARE_ESTOP) == LOW) {
+            // Cannot clear fault if physical E-STOP switch is still held
+            return false;
+        }
+        estop_latched_ = false;
         error_flags_ = ERROR_FLAG_NONE;
         current_state_ = STATE_DISARMED;
         digitalWrite(PIN_STEPPER_ENABLE, HIGH);

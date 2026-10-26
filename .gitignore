@@ -20,3 +20,7 @@ node_modules/
 # Logs & telemetry
 robot/logs/
 *.jsonl
+
+# Build artifacts & caches
+.pio/
+.pytest_cache/

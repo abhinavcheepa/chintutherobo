@@ -2,7 +2,6 @@
 #define BALANCE_H
 
 #include <Arduino.h>
-#include <EEPROM.h>
 #include "protocol.h"
 #include "config.h"
 

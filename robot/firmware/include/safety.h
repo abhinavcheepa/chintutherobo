@@ -23,7 +23,12 @@ public:
     // Watchdog feed
     void feed_heartbeat(uint32_t now_ms);
 
+    // Hardware E-STOP interrupt handler & latch status
+    static void estop_isr();
+    static bool is_estop_latched() { return estop_latched_; }
+
 private:
+    static volatile bool estop_latched_;
     uint8_t  current_state_;
     uint8_t  error_flags_;
     uint32_t last_heartbeat_time_ms_;
