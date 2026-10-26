@@ -1,67 +1,52 @@
 # 🤖 CHINTU — Two-Wheeled Legged Robot Control Platform
 
-A complete, multi-language, modular software stack for controlling and monitoring **Chintu**, a hybrid two-wheeled bipedal/legged robot.
+**Hardware Baseline:** Raspberry Pi (Supervisor & Teleoperation) + Arduino Mega 2560 (Hard Real-Time Core)
+
+This repository contains the complete production software stack for **Chintu**, a hybrid two-wheeled bipedal/legged robot.
 
 ---
 
-## 📁 Project Architecture & Language Breakdown
+## 📁 Repository Structure
 
-The project has been separated into clean, modular files across **4 programming languages**:
+All active development, firmware, supervisor backend, web telemetry interface, and simulation tools are located in [`robot/`](./robot/):
 
 ```text
-chintu/
-├── index.html                   # HTML5 Semantic UI Layout & Controls Structure
-├── index.css                    # CSS3 Cyberpunk / Glassmorphism Design System
+robot/
+├── backend/                     # FastAPI Supervisor Daemon (WebSocket + REST)
+│   ├── config.py                # Single source of truth for rates, limits, and auth
+│   ├── logger.py                # Telemetry flight recorder (JSONL)
+│   ├── protocol.py              # CRC16 binary protocol pack/unpack
+│   ├── serial_manager.py        # Async serial bridge to Arduino Mega (250,000 baud)
+│   ├── server.py                # FastAPI HTTPS & WebSocket teleoperation server
+│   ├── scripts/                 # Systemd service, hotspot setup, token generators
+│   └── tests/                   # Pytest automated test suite (safety, fuzzing, IK)
 │
-├── js/                          # Modular Client-side JavaScript (ES6)
-│   ├── state.js                 # Central Application State & Data Stores
-│   ├── utils.js                 # DOM helpers, Math clamping, Logger utility
-│   ├── connection.js            # WebSocket, REST API & Web Bluetooth client
-│   ├── simulation.js            # Inverted pendulum physics & PID controller
-│   ├── visualizer.js            # Canvas 2D robot skeleton, joints & pitch gyro
-│   ├── telemetry.js             # TelemetryGraph charting & live sensor metrics
-│   ├── controls.js              # D-pad, keyboard, sliders, PID tuning & CLI
-│   └── main.js                  # Main entry point & 60 FPS update loop
+├── firmware/                    # Arduino Mega 2560 Real-Time Control Core
+│   ├── include/                 # Motor, balance, safety, and protocol headers
+│   ├── src/                     # 200 Hz PID balance loop, Timer3/4 ISR, MPU-6050
+│   └── platformio.ini           # PlatformIO project targeting ATmega2560
 │
-├── server.py                    # Python Backend Server (WebSocket + REST API)
-├── requirements.txt             # Python dependencies (websockets, aiohttp)
+├── web-ui/                      # Modern HTML5/CSS3/ES6 Teleoperation Dashboard
+│   ├── index.html               # Operator teleoperation dashboard
+│   ├── css/ui.css               # Neon glassmorphism UI theme
+│   └── js/                      # Single-use WS auth, 3D visualizer, charts, virtual joystick
 │
-└── firmware/                    # Embedded Hardware Firmware
-    └── chintu_esp32.ino         # ESP32 C++ Arduino firmware for IMU & motors
+├── tools/                       # Simulation & Analysis Tools
+│   ├── mock_ws_server.py        # Full hardware simulation server for UI development
+│   ├── ik_solver.py             # Planar 3-link inverse kinematics solver
+│   └── log_plotter.py           # Offline flight log telemetry plotter
+│
+└── README.md                    # Primary Operator Manual & Technical Specification
 ```
 
 ---
 
-## 💻 Tech Stack & Languages
+## 🚀 Getting Started
 
-| Language | Layer | Purpose |
-|----------|-------|---------|
-| **HTML5** | Frontend Structure | Semantic 3-column dashboard grid, overlays, inputs |
-| **CSS3** | Frontend Styling | Dark neon glassmorphism theme, responsiveness |
-| **JavaScript** | Frontend Client Logic | 8 modular files handling physics, telemetry, viz |
-| **Python** | Backend Server | Async WebSocket broadcaster & REST telemetry API |
-| **C++ (Arduino)** | Embedded Firmware | ESP32 WiFi/WebSocket server, IMU reading, BLDC motor control |
-
----
-
-## 🚀 How to Run
-
-### Option 1: Browser-only (Client-Side Simulation)
-Simply double-click or open `index.html` in your browser. The inverted pendulum simulation, PID balancing, D-pad controls, and telemetry graphs run immediately out-of-the-box.
-
-### Option 2: Full Python Backend Server
-1. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Start the server:
-   ```bash
-   python server.py
-   ```
-3. Open `index.html`, select **WebSocket** (port `8765`), and click **CONNECT**.
-
-### Option 3: Real ESP32 Robot Hardware
-1. Open [`firmware/chintu_esp32.ino`](firmware/chintu_esp32.ino) in Arduino IDE.
-2. Install `ArduinoJson` and `WebSocketsServer` libraries.
-3. Flash to your ESP32 board connected to the Chintu robot.
-# chintutherobo
+Please refer to the comprehensive **[Primary Robot Documentation (`robot/README.md`)](./robot/README.md)** for:
+1. Canonical pinout allocation for Arduino Mega 2560 and Raspberry Pi.
+2. Production secrets setup (`/etc/chintu.env`) and token rotation (`gen_token.py`).
+3. Wi-Fi Access Point setup with dynamic SSID and random 16-character WPA2-PSK (`setup_hotspot.sh`).
+4. Firmware compilation with PlatformIO (`pio run -e megaatmega2560`).
+5. Automated test suite execution (`pytest robot/backend/tests/`).
+6. Bench-testing safety protocol before field deployment.
