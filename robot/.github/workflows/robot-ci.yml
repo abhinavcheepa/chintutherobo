@@ -1,0 +1,43 @@
+name: Robot Embedded & Supervisor CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  firmware-build:
+    name: PlatformIO Arduino Mega Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PlatformIO
+        run: |
+          pip install --upgrade platformio
+      - name: Build Firmware
+        run: |
+          cd robot/firmware
+          pio run
+
+  backend-tests:
+    name: Backend Test Suite & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Dependencies
+        run: |
+          cd robot/backend
+          pip install -r requirements.txt
+      - name: Run Pytest Suite
+        run: |
+          cd robot
+          python -m pytest backend/tests/ -v

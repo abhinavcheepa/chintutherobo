@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090d16">
+  <title>Chintu Biped Teleoperation & Field HMI</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/ui.css">
+
+  <!-- Bundled local Three.js (Zero CDN dependencies for isolated Pi Wi-Fi hotspot) -->
+  <script src="vendor/three.min.js"></script>
+</head>
+<body>
+  <!-- Top Insecure Context Warning (Shown if loaded over insecure HTTP) -->
+  <div id="insecure-context-banner" class="insecure-banner hidden" role="alert">
+    <span>⚠️ Insecure Context (HTTP): Offline PWA &amp; Screen Wake Lock require HTTPS. Access via https://192.168.4.1:8000.</span>
+  </div>
+
+  <!-- Persistent E-STOP Undelivered Alert (Shown if E-STOP clicked while disconnected) -->
+  <div id="estop-undelivered-banner" class="fault-banner hidden" role="alert" style="background: linear-gradient(90deg, #7f1d1d, #ef4444); border-color: #fee2e2;">
+    <div class="fault-info">
+      <span class="fault-code">⚠️ CRITICAL: E-STOP NOT DELIVERED</span>
+      <span class="fault-hint">WebSocket disconnected! Robot may still be in previous state. Retrying delivery continuously...</span>
+    </div>
+  </div>
+
+  <!-- Top Persistent Header & Real-Time Status Bar -->
+  <header class="hud-header">
+    <div class="brand-cluster">
+      <span class="robot-logo-icon">⚡</span>
+      <span class="robot-title">CHINTU</span>
+      <span id="robot-state-chip" class="state-chip state-disarmed">DISARMED</span>
+      <span id="client-role-chip" class="badge badge-connecting">OBSERVER</span>
+    </div>
+
+    <div class="hud-telemetry-strip">
+      <div class="telemetry-item">
+        <span class="label">BATT 3S</span>
+        <div class="battery-gauge-wrapper">
+          <div class="battery-bar-track">
+            <div id="stat-batt-bar" class="battery-bar-fill gauge-green"></div>
+          </div>
+          <span id="stat-batt-volts" class="val">--.-- V</span>
+        </div>
+      </div>
+
+      <div class="telemetry-item">
+        <span class="label">RTT</span>
+        <span id="stat-rtt" class="val">-- ms</span>
+      </div>
+
+      <div class="telemetry-item">
+        <span class="label">JITTER</span>
+        <span id="stat-jitter" class="val">-- µs</span>
+      </div>
+
+      <div class="telemetry-item">
+        <span class="label">PI TEMP</span>
+        <span id="stat-cpu-temp" class="val">--.- °C</span>
+      </div>
+    </div>
+
+    <div class="header-action-cluster">
+      <span id="conn-badge" class="badge badge-disconnected">OFFLINE</span>
+      <button id="btn-disarm" class="btn-disarm hidden" aria-label="Disarm Robot">DISARM</button>
+      <button id="btn-estop" class="btn-estop" aria-label="Emergency Stop">E-STOP</button>
+    </div>
+  </header>
+
+  <!-- Secondary Navigation Strip -->
+  <nav class="nav-tab-strip" role="tablist">
+    <button class="nav-tab-btn active" data-tab="drive" role="tab" aria-selected="true">🎮 Drive</button>
+    <button class="nav-tab-btn" data-tab="telemetry" role="tab" aria-selected="false">📈 Telemetry</button>
+    <button class="nav-tab-btn" data-tab="tune" role="tab" aria-selected="false">⚙️ Tune</button>
+    <button class="nav-tab-btn" data-tab="calibrate" role="tab" aria-selected="false">🎯 Calibrate</button>
+    <button class="nav-tab-btn" data-tab="gates" role="tab" aria-selected="false">🛡️ Bench Gates</button>
+    <button class="nav-tab-btn" data-tab="logs" role="tab" aria-selected="false">📋 Logs</button>
+    <button class="nav-tab-btn" data-tab="settings" role="tab" aria-selected="false">🔧 Settings</button>
+  </nav>
+
+  <!-- Main Viewport Container -->
+  <main class="viewport-container">
+    <!-- Active Fault Banner (Hidden during normal flight) -->
+    <div id="fault-banner" class="fault-banner hidden" role="alert">
+      <div class="fault-info">
+        <span id="fault-code-text" class="fault-code">FAULT [0x00]: SYSTEM CRITICAL</span>
+        <span id="fault-recovery-hint" class="fault-hint">Place robot upright on level ground, click "Clear Fault", then re-arm.</span>
+      </div>
+      <button id="btn-clear-fault" class="btn-clear-fault">CLEAR FAULT</button>
+    </div>
+
+    <!-- 300ms Stale Telemetry Lockout Overlay (Fail-Closed) -->
+    <div id="stale-overlay" class="stale-overlay hidden" role="alert">
+      <div class="stale-card">
+        <div class="stale-icon">⚠️</div>
+        <h2>TELEMETRY STALE</h2>
+        <p>No valid telemetry received in &gt; 300 ms (Browser age &gt; 300ms or Pi-Mega packet age &gt; 300ms). Control streaming locked to prevent runaway.</p>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         TAB 1: DRIVE (Field Teleoperation Cockpit)
+         ==================================================================== -->
+    <section id="tab-drive" class="tab-panel" role="tabpanel">
+      <!-- Slide-to-Arm Safety Rail -->
+      <div class="slide-arm-container">
+        <div id="slide-arm-track" class="slide-arm-track disabled">
+          <span id="slide-arm-label" class="slide-arm-label">SLIDE TO ARM ROBOT ❯❯</span>
+          <div id="slide-arm-knob" class="slide-arm-knob" role="slider" aria-label="Slide to Arm" tabindex="0">▶</div>
+        </div>
+      </div>
+
+      <!-- Drive Grid: Left Pod (Joystick) + Right Pod (Sliders) -->
+      <div class="drive-layout-grid">
+        <!-- Left Thumb Pod -->
+        <div class="drive-left-pod">
+          <div id="joystick-zone" class="joystick-zone">
+            <div class="joystick-crosshair-v"></div>
+            <div class="joystick-crosshair-h"></div>
+            <div id="joystick-knob" class="joystick-knob"></div>
+          </div>
+
+          <div class="hud-attitude-banner">
+            <div class="attitude-chip">PITCH: <span id="drive-live-pitch" class="slider-val-badge">0.0°</span></div>
+            <div class="attitude-chip">ROLL: <span id="drive-live-roll" class="slider-val-badge">0.0°</span></div>
+            <div id="gamepad-badge" class="attitude-chip" style="display:none;">GAMEPAD ACTIVE</div>
+          </div>
+        </div>
+
+        <!-- Right Thumb Pod -->
+        <div class="drive-right-pod">
+          <div class="control-slider-group">
+            <div class="slider-label-row">
+              <label for="slider-height">LEG HEIGHT (IK: 85 - 175 mm)</label>
+              <span id="val-height" class="slider-val-badge">135 mm</span>
+            </div>
+            <input type="range" id="slider-height" min="85" max="175" value="135" step="1">
+          </div>
+
+          <div class="control-slider-group">
+            <div class="slider-label-row">
+              <label for="slider-pitch-trim">PITCH TRIM</label>
+              <span id="val-pitch-trim" class="slider-val-badge">0.0°</span>
+            </div>
+            <input type="range" id="slider-pitch-trim" min="-10" max="10" value="0" step="0.5">
+          </div>
+
+          <div class="control-slider-group">
+            <div class="slider-label-row">
+              <label for="slider-speed-limit">SPEED LIMIT (CEILING)</label>
+              <span id="val-speed-limit" class="slider-val-badge">0.30 m/s</span>
+            </div>
+            <input type="range" id="slider-speed-limit" min="0.05" max="0.80" value="0.30" step="0.05">
+          </div>
+
+          <div class="toggle-button-row">
+            <label class="toggle-box">
+              <input type="checkbox" id="toggle-gentle-mode">
+              <span>🐢 Gentle Mode (50%)</span>
+            </label>
+            <label class="toggle-box">
+              <input type="checkbox" id="toggle-balance-enable" checked>
+              <span>⚖️ Active Balance</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 2: TELEMETRY (Charts & 3D Digital Twin)
+         ==================================================================== -->
+    <section id="tab-telemetry" class="tab-panel hidden" role="tabpanel">
+      <div class="telemetry-grid">
+        <!-- Canvas Charts Column -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <span>PITCH ATTITUDE &amp; RATE</span>
+              <span style="color: #38bdf8; font-size: 0.75rem;">Cyan: Pitch (°) | Magenta: Rate (°/s)</span>
+            </div>
+            <canvas id="chart-pitch-stream" class="chart-canvas" width="460" height="130"></canvas>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <span>WHEEL VELOCITIES (L / R)</span>
+              <span style="color: #34d399; font-size: 0.75rem;">Green: Left | Yellow: Right (steps/s)</span>
+            </div>
+            <canvas id="chart-wheels-stream" class="chart-canvas" width="460" height="130"></canvas>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <span>BATTERY VOLTAGE &amp; LOOP JITTER</span>
+              <div style="display: flex; gap: 8px;">
+                <button id="btn-chart-pause" class="badge badge-disconnected" style="cursor: pointer;">PAUSE</button>
+                <button id="btn-chart-export" class="badge badge-online" style="cursor: pointer;">CSV EXPORT</button>
+              </div>
+            </div>
+            <canvas id="chart-power-stream" class="chart-canvas" width="460" height="130"></canvas>
+          </div>
+        </div>
+
+        <!-- 3D Twin Column -->
+        <div class="twin-card">
+          <div class="chart-card-header">
+            <span>3D DIGITAL TWIN (ATTITUDE &amp; POSE)</span>
+            <span style="color: #94a3b8; font-size: 0.75rem;">Hardware Synchronized</span>
+          </div>
+          <div id="three-viewport" class="twin-viewport"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 3: TUNE (PID Gains & Presets)
+         ==================================================================== -->
+    <section id="tab-tune" class="tab-panel hidden" role="tabpanel">
+      <div class="tune-container">
+        <div class="card-box">
+          <div class="card-title">CONTROLLER SELECTION &amp; PRESETS</div>
+          <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+            <select id="tune-controller-select" class="tune-input-num" style="flex: 1; text-align: left; padding: 0 10px;">
+              <option value="0">Controller 0: Pitch Balance (Angle PD)</option>
+              <option value="1">Controller 1: Wheel Velocity (Speed PI)</option>
+              <option value="2">Controller 2: Yaw Steering (Turn P)</option>
+            </select>
+            <select id="tune-preset-select" class="tune-input-num" style="flex: 1; text-align: left; padding: 0 10px;">
+              <option value="default_bench">Default Bench Stand</option>
+              <option value="aggressive_ground">Aggressive Ground Run</option>
+              <option value="gentle_crouch">Gentle Low-Height Crouch</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-title">PID PARAMETER GAINS</div>
+
+          <div class="tune-row">
+            <span class="tune-label">Kp:</span>
+            <input type="range" id="tune-kp-slider" min="0" max="100" step="0.1" value="30">
+            <input type="number" id="tune-kp-num" class="tune-input-num" value="30" step="0.1">
+          </div>
+
+          <div class="tune-row">
+            <span class="tune-label">Ki:</span>
+            <input type="range" id="tune-ki-slider" min="0" max="2" step="0.005" value="0.15">
+            <input type="number" id="tune-ki-num" class="tune-input-num" value="0.15" step="0.005">
+          </div>
+
+          <div class="tune-row">
+            <span class="tune-label">Kd:</span>
+            <input type="range" id="tune-kd-slider" min="0" max="10" step="0.05" value="1.45">
+            <input type="number" id="tune-kd-num" class="tune-input-num" value="1.45" step="0.05">
+          </div>
+
+          <div class="tune-row">
+            <span class="tune-label">Kff:</span>
+            <input type="range" id="tune-kff-slider" min="0" max="1" step="0.01" value="0.05">
+            <input type="number" id="tune-kff-num" class="tune-input-num" value="0.05" step="0.01">
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 18px;">
+            <button id="btn-tune-send" class="btn-primary" style="flex: 2;">UPLOAD TO RAM</button>
+            <button id="btn-tune-burn" class="btn-secondary" style="flex: 1;">BURN EEPROM</button>
+            <button id="btn-tune-revert" class="btn-secondary" style="flex: 1;">REVERT</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 4: CALIBRATE (5-Step Guided Wizard)
+         ==================================================================== -->
+    <section id="tab-calibrate" class="tab-panel hidden" role="tabpanel">
+      <div style="max-width: 680px; margin: 0 auto;">
+        <!-- Step Navigation Pills -->
+        <div class="cal-nav-strip">
+          <div class="cal-step-pill active" data-step="1">1. IMU Horizon</div>
+          <div class="cal-step-pill" data-step="2">2. Servo Trims</div>
+          <div class="cal-step-pill" data-step="3">3. Height Sweep</div>
+          <div class="cal-step-pill" data-step="4">4. Wheel Jog</div>
+          <div class="cal-step-pill" data-step="5">5. Tilt Sign</div>
+        </div>
+
+        <div class="card-box">
+          <h3 id="cal-step-title" class="card-title">Step 1: IMU Level Horizon Calibration</h3>
+
+          <!-- Step 1 View -->
+          <div id="cal-panel-step-1">
+            <p style="color: var(--text-muted); margin-bottom: 12px;">Place robot on flat bench stand. Ensure the chassis is completely stationary before sampling gyro zero offsets.</p>
+            <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+              <div class="attitude-chip">LIVE PITCH: <span id="cal-live-pitch" class="slider-val-badge">0.00°</span></div>
+              <div class="attitude-chip">LIVE ROLL: <span id="cal-live-roll" class="slider-val-badge">0.00°</span></div>
+            </div>
+            <button id="btn-cal-zero-imu" class="btn-primary" style="width: 100%;">ZERO GYRO BIAS NOW</button>
+            <div class="cal-action-row">
+              <button id="btn-cal-fail-1" class="btn-secondary" style="color: #f87171;">FAIL STEP</button>
+              <button id="btn-cal-pass-1" class="btn-primary" style="background: #059669;">PASS STEP &gt;</button>
+            </div>
+          </div>
+
+          <!-- Step 2 View -->
+          <div id="cal-panel-step-2" class="hidden">
+            <p style="color: var(--text-muted); margin-bottom: 12px;">Adjust individual servo neutral pulse widths (±200 µs) until both legs hang parallel and perpendicular.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Left Hip Pitch: <span id="val-trim-hip_pitch_l">0 µs</span></label>
+                <input type="range" id="trim-hip_pitch_l" min="-200" max="200" value="0">
+              </div>
+              <div>
+                <label>Right Hip Pitch: <span id="val-trim-hip_pitch_r">0 µs</span></label>
+                <input type="range" id="trim-hip_pitch_r" min="-200" max="200" value="0">
+              </div>
+              <div>
+                <label>Left Hip Roll: <span id="val-trim-hip_roll_l">0 µs</span></label>
+                <input type="range" id="trim-hip_roll_l" min="-200" max="200" value="0">
+              </div>
+              <div>
+                <label>Right Hip Roll: <span id="val-trim-hip_roll_r">0 µs</span></label>
+                <input type="range" id="trim-hip_roll_r" min="-200" max="200" value="0">
+              </div>
+              <div>
+                <label>Left Knee: <span id="val-trim-knee_l">0 µs</span></label>
+                <input type="range" id="trim-knee_l" min="-200" max="200" value="0">
+              </div>
+              <div>
+                <label>Right Knee: <span id="val-trim-knee_r">0 µs</span></label>
+                <input type="range" id="trim-knee_r" min="-200" max="200" value="0">
+              </div>
+            </div>
+            <button id="btn-cal-save-trims" class="btn-primary" style="width: 100%; margin-top: 14px;">SAVE TRIMS TO LOCAL STORAGE</button>
+            <div class="cal-action-row">
+              <button id="btn-cal-fail-2" class="btn-secondary" style="color: #f87171;">FAIL STEP</button>
+              <button id="btn-cal-pass-2" class="btn-primary" style="background: #059669;">PASS STEP &gt;</button>
+            </div>
+          </div>
+
+          <!-- Step 3 View -->
+          <div id="cal-panel-step-3" class="hidden">
+            <p style="color: var(--text-muted); margin-bottom: 12px;">Sweep leg heights across IK reachable range [85 mm, 175 mm] to verify linkage travel and ensure no binding occurs.</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button id="btn-cal-sweep-min" class="btn-secondary" style="flex: 1;">MIN (85 mm)</button>
+              <button id="btn-cal-sweep-nom" class="btn-secondary" style="flex: 1;">NOM (135 mm)</button>
+              <button id="btn-cal-sweep-max" class="btn-secondary" style="flex: 1;">MAX (175 mm)</button>
+            </div>
+            <div class="attitude-chip" style="margin-bottom: 14px;">COMMANDED: <span id="cal-live-height-disp" class="slider-val-badge">135 mm</span></div>
+            <div class="cal-action-row">
+              <button id="btn-cal-fail-3" class="btn-secondary" style="color: #f87171;">FAIL STEP</button>
+              <button id="btn-cal-pass-3" class="btn-primary" style="background: #059669;">PASS STEP &gt;</button>
+            </div>
+          </div>
+
+          <!-- Step 4 View -->
+          <div id="cal-panel-step-4" class="hidden">
+            <p style="color: var(--text-muted); margin-bottom: 12px;">Jog each wheel forward to verify wiring polarity (A4988 / TMC2209 DIR pins). Wheels must rotate forward.</p>
+            <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+              <button id="btn-cal-jog-l" class="btn-secondary" style="flex: 1;">JOG LEFT WHEEL (+10)</button>
+              <button id="btn-cal-jog-r" class="btn-secondary" style="flex: 1;">JOG RIGHT WHEEL (+10)</button>
+            </div>
+            <div class="cal-action-row">
+              <button id="btn-cal-fail-4" class="btn-secondary" style="color: #f87171;">FAIL STEP</button>
+              <button id="btn-cal-pass-4" class="btn-primary" style="background: #059669;">PASS STEP &gt;</button>
+            </div>
+          </div>
+
+          <!-- Step 5 View -->
+          <div id="cal-panel-step-5" class="hidden">
+            <p style="color: var(--text-muted); margin-bottom: 12px;">Physically tilt the robot's nose forward by hand. Forward tilt MUST show a Positive (+) pitch reading.</p>
+            <div style="text-align: center; padding: 18px; background: #0c121e; border-radius: 6px; margin-bottom: 14px;">
+              <div id="cal-tilt-pitch-display" style="font-family: var(--font-mono); font-size: 2.2rem; font-weight: 800; color: var(--accent-cyan);">+0.0°</div>
+              <div id="cal-tilt-feedback" class="text-muted" style="margin-top: 8px;">Tilt robot forward > 8° to verify polarity...</div>
+            </div>
+            <div class="cal-action-row">
+              <button id="btn-cal-fail-5" class="btn-secondary" style="color: #f87171;">FAIL (INVERTED)</button>
+              <button id="btn-cal-pass-5" class="btn-primary" style="background: #059669;">PASS (POLARITY OK) ✓</button>
+            </div>
+          </div>
+
+          <!-- Footer Next / Prev controls -->
+          <div style="display: flex; justify-content: space-between; margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+            <button id="btn-cal-prev" class="btn-secondary" disabled>&lt; PREVIOUS</button>
+            <button id="btn-cal-next" class="btn-secondary">NEXT &gt;</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 5: BENCH GATES (Sequential Safety Clearance)
+         ==================================================================== -->
+    <section id="tab-gates" class="tab-panel hidden" role="tabpanel">
+      <div style="max-width: 680px; margin: 0 auto;">
+        <div id="gate-lock-status" class="gate-banner gate-banner-locked">
+          🔒 FREE-RUN LOCKED (Speed capped at 0.15 m/s until Gate 1 &amp; Gate 2 checked)
+        </div>
+
+        <p style="font-size: 0.8rem; color: #fbbf24; margin-bottom: 14px; background: rgba(245, 158, 11, 0.1); padding: 8px 12px; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.3);">
+          ⚠️ <strong>OPERATOR NOTICE:</strong> These checklist checkboxes are a procedural checklist and operator reminder, not a hardware safety interlock. Always ensure physical tether or perimeter clearance.
+        </p>
+
+        <div class="checklist-item">
+          <input type="checkbox" id="chk-gate1">
+          <div>
+            <h4 style="font-size: 0.95rem; margin-bottom: 4px;">Gate 1: Bench Stand Clearance (Wheels Off Ground)</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Robot suspended on bench rig. Stepper pulses and servo IK validated. No mechanical bind. Emergency stop tested.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <input type="checkbox" id="chk-gate2">
+          <div>
+            <h4 style="font-size: 0.95rem; margin-bottom: 4px;">Gate 2: Tethered Overhead Suspension (Soft Fall Protection)</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Overhead safety cord attached. Active balance loop enabled. Tilt cutoff (&gt;45° pitch / &gt;35° roll) verified to cut motor torque.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <input type="checkbox" id="chk-gate3">
+          <div>
+            <h4 style="font-size: 0.95rem; margin-bottom: 4px;">Gate 3: Free Ground Run (Autonomous Balance Flight)</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Unlocks full speed control (up to 0.80 m/s). Floor area cleared of obstacles. LiPo battery &ge; 11.4 V.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 6: LOGS (Flight Event Stream)
+         ==================================================================== -->
+    <section id="tab-logs" class="tab-panel hidden" role="tabpanel">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <span style="font-weight: 700; color: var(--text-muted);">SYSTEM FLIGHT LOG (LATEST 200 EVENTS)</span>
+        <div style="display: flex; gap: 8px;">
+          <button id="btn-clear-logs" class="badge badge-disconnected" style="cursor: pointer;">CLEAR</button>
+          <button id="btn-download-logs" class="badge badge-online" style="cursor: pointer;">DOWNLOAD LOG</button>
+        </div>
+      </div>
+      <div id="log-stream-list" class="log-stream">
+        <!-- Live log rows injected here -->
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 7: SETTINGS
+         ==================================================================== -->
+    <section id="tab-settings" class="tab-panel hidden" role="tabpanel">
+      <div style="max-width: 600px; margin: 0 auto;">
+        <div class="card-box">
+          <div class="card-title">NETWORK &amp; AUTHENTICATION</div>
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 0.85rem; font-weight: 700;">Supervisor WebSocket Token:</label>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <input type="password" id="settings-auth-token" class="tune-input-num" style="flex: 1; text-align: left; padding: 0 10px;">
+              <button id="btn-save-token" class="btn-primary" style="min-height: 40px; padding: 0 16px;">SAVE TOKEN</button>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">
+              Token is saved locally in browser storage. Note: Real Wi-Fi perimeter security is enforced by the Raspberry Pi hotspot WPA2 password.
+            </p>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 0.85rem; font-weight: 700;">Default Pi Hotspot Host:</label>
+            <input type="text" value="192.168.4.1:8000" class="tune-input-num" style="width: 100%; text-align: left; padding: 0 10px; margin-top: 4px;" readonly>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Service Worker Update Toast -->
+  <div id="sw-update-toast" class="sw-toast hidden">
+    <span>⚡ New firmware/HUD update available!</span>
+    <button id="btn-sw-reload" class="btn-sm">RELOAD</button>
+  </div>
+
+  <!-- Modal Warning: PID Change While ARMED -->
+  <div id="tune-armed-modal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <h3 style="color: var(--color-warning); margin-bottom: 10px;">⚠️ ROBOT IS ARMED</h3>
+      <p style="color: var(--text-muted); margin-bottom: 18px;">Modifying PID gains while the robot is actively balancing can induce severe instability and aggressive motor transients.</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="btn-modal-cancel" class="btn-secondary" style="flex: 1;">CANCEL</button>
+        <button id="btn-modal-confirm" class="btn-primary" style="background: var(--color-warning); color: #000; flex: 1;">OVERRIDE &amp; SEND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Master ES Module Entrypoint -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

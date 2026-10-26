@@ -4,3 +4,19 @@ __pycache__/
 .vscode/
 .idea/
 *.log
+
+# Secrets & environment
+*.pem
+*.key
+.env
+.env.*
+robot/backend/certs/
+
+# Virtual environments & node
+venv/
+.venv/
+node_modules/
+
+# Logs & telemetry
+robot/logs/
+*.jsonl

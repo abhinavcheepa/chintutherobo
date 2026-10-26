@@ -1,0 +1,17 @@
+{
+  "name": "Chintu Biped Teleoperation HUD",
+  "short_name": "ChintuHUD",
+  "description": "Field Teleoperation and Telemetry HUD for Self-Balancing Wheel-Leg Robot",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2300e5ff'/><text x='50' y='65' font-size='50' font-family='sans-serif' text-anchor='middle' fill='%23090d16'>⚡</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

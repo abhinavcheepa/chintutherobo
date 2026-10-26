@@ -1,0 +1,16 @@
+[Unit]
+Description=Chintu Wheel-Leg Robot Supervisor Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/robot/backend
+ExecStart=/usr/bin/python3 -m backend.server
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/chintu.env
+
+[Install]
+WantedBy=multi-user.target
