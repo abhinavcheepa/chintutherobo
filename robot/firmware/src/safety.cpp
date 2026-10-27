@@ -19,7 +19,8 @@ SafetyManager::SafetyManager()
       error_flags_(ERROR_FLAG_NONE),
       last_heartbeat_time_ms_(0),
       calibration_start_time_ms_(0),
-      low_batt_start_ms_(0) {}
+      low_batt_start_ms_(0),
+      has_received_heartbeat_(false) {}
 
 void SafetyManager::init() {
     pinMode(PIN_STEPPER_ENABLE, OUTPUT);
@@ -32,8 +33,9 @@ void SafetyManager::init() {
     
     current_state_ = STATE_DISARMED;
     error_flags_ = ERROR_FLAG_NONE;
-    last_heartbeat_time_ms_ = millis();
+    last_heartbeat_time_ms_ = 0;
     low_batt_start_ms_ = 0;
+    has_received_heartbeat_ = false;
 }
 
 void SafetyManager::update(uint32_t now_ms, float current_pitch_deg, float current_roll_deg, uint16_t v_batt_mv) {
@@ -58,7 +60,7 @@ void SafetyManager::update(uint32_t now_ms, float current_pitch_deg, float curre
 
     // 3. Heartbeat Watchdog in ARMED or CALIBRATING states
     if (current_state_ == STATE_ARMED || current_state_ == STATE_CALIBRATING) {
-        if ((now_ms - last_heartbeat_time_ms_) > HEARTBEAT_TIMEOUT_MS) {
+        if (!has_received_heartbeat_ || ((now_ms - last_heartbeat_time_ms_) > HEARTBEAT_TIMEOUT_MS)) {
             trigger_fault(ERROR_FLAG_TIMEOUT);
             return;
         }
@@ -109,6 +111,11 @@ bool SafetyManager::request_state_transition(uint8_t new_state, bool force) {
         return true;
     }
 
+    // Arming or calibrating strictly requires at least one valid heartbeat received from supervisor
+    if ((new_state == STATE_ARMED || new_state == STATE_CALIBRATING) && !has_received_heartbeat_) {
+        return false;
+    }
+
     // Transition from DISARMED to CALIBRATING
     if (new_state == STATE_CALIBRATING && (current_state_ == STATE_DISARMED || force)) {
         current_state_ = STATE_CALIBRATING;
@@ -151,5 +158,6 @@ void SafetyManager::trigger_estop(uint8_t reason) {
 }
 
 void SafetyManager::feed_heartbeat(uint32_t now_ms) {
+    has_received_heartbeat_ = true;
     last_heartbeat_time_ms_ = now_ms;
 }

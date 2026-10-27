@@ -36,11 +36,13 @@ class SerialManager:
         # Telemetry callbacks
         self.telemetry_callbacks: List[Callable[[Telemetry], None]] = []
         self.ack_callbacks: List[Callable[[AckNack], None]] = []
+        self.link_callbacks: List[Callable[[bool], None]] = []
 
         self._running = False
         self._tasks: List[asyncio.Task] = []
         self.latest_telemetry: Optional[Telemetry] = None
         self.last_rx_time: float = 0.0
+        self.reconnect_attempts = 0
 
     async def start(self) -> None:
         """Starts background worker tasks."""
@@ -61,7 +63,18 @@ class SerialManager:
     def register_ack_callback(self, cb: Callable[[AckNack], None]) -> None:
         self.ack_callbacks.append(cb)
 
+    def register_link_callback(self, cb: Callable[[bool], None]) -> None:
+        self.link_callbacks.append(cb)
+
+    def _notify_link_state(self, connected: bool) -> None:
+        for cb in self.link_callbacks:
+            try:
+                cb(connected)
+            except Exception as e:
+                logger.error("Error in link callback: %s", e)
+
     async def _disconnect(self) -> None:
+        was_connected = self.is_connected
         self.is_connected = False
         if self.writer:
             try:
@@ -71,9 +84,12 @@ class SerialManager:
                 logger.debug("Error while closing writer: %s", e)
             self.writer = None
             self.reader = None
+        if was_connected:
+            logger.warning("Serial link lost! Notifying supervisor and UI.")
+            self._notify_link_state(False)
 
     async def _connection_supervisor(self) -> None:
-        """Supervises serial connection and triggers auto-reconnect with candidate port scanning."""
+        """Supervises serial connection and triggers auto-reconnect with exponential backoff."""
         candidate_ports = [self.port, "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyUSB0", "/dev/ttyUSB1", "COM3", "COM4", "COM5"]
         # Deduplicate while preserving order
         unique_candidates = list(dict.fromkeys(candidate_ports))
@@ -94,7 +110,9 @@ class SerialManager:
                         self.port = port_candidate
                         self.is_connected = True
                         connected = True
+                        self.reconnect_attempts = 0
                         logger.info("Serial connection established with Mega 2560 on %s", self.port)
+                        self._notify_link_state(True)
                         await self._read_loop()
                         break
                     except (serial.SerialException, OSError, asyncio.CancelledError) as e:
@@ -102,7 +120,10 @@ class SerialManager:
                         await self._disconnect()
 
                 if not connected:
-                    await asyncio.sleep(SERIAL_RECONNECT_DELAY_S)
+                    self.reconnect_attempts += 1
+                    # Exponential backoff capped at 8.0s: 0.5s * 1.5^(attempts)
+                    delay = min(8.0, 0.5 * (1.5 ** min(self.reconnect_attempts, 6)))
+                    await asyncio.sleep(delay)
             else:
                 await asyncio.sleep(0.5)
 
@@ -169,6 +190,9 @@ class SerialManager:
             return False
 
     async def send_motion_command(self, cmd: CmdMotion) -> bool:
+        if not self.is_connected:
+            logger.warning("Rejected motion command: serial link to Mega is DOWN.")
+            return False
         return await self.send_frame(MSG_CMD_MOTION, cmd.pack())
 
     async def send_arm_state(self, state: int, force: bool = False) -> bool:

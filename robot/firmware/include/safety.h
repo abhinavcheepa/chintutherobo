@@ -34,6 +34,7 @@ private:
     uint32_t last_heartbeat_time_ms_;
     uint32_t calibration_start_time_ms_;
     uint32_t low_batt_start_ms_;
+    bool     has_received_heartbeat_;
 };
 
 extern SafetyManager Safety;

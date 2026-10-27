@@ -258,6 +258,8 @@ class StreamParser:
             elif self._state == self.STATE_WAIT_SYNC1:
                 if b == SYNC_1:
                     self._state = self.STATE_WAIT_LEN
+                elif b == SYNC_0:
+                    self._state = self.STATE_WAIT_SYNC1  # Consecutive 0xAA 0xAA 0x55 resync
                 else:
                     self._state = self.STATE_WAIT_SYNC0
 

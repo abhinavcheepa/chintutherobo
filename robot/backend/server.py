@@ -47,6 +47,20 @@ primary_controller_ws: Optional[WebSocket] = None
 last_valid_command_time: float = 0.0
 disconnect_disarm_task: Optional[asyncio.Task] = None
 cmd_sequence_id = 0
+serial_link_down: bool = True  # Start pessimistic: no link until proven otherwise
+
+
+def on_serial_link_change(connected: bool) -> None:
+    """Callback invoked by SerialManager when serial link state changes.
+    On link loss: forces supervisor into DISARMED state, ensuring fail-closed behavior.
+    On link restore: logs recovery (operator must explicitly re-arm).
+    """
+    global serial_link_down
+    serial_link_down = not connected
+    if not connected:
+        logger.warning("SERIAL LINK LOST — forcing supervisor to DISARMED. Operator must re-arm after reconnect.")
+    else:
+        logger.info("Serial link restored. Awaiting operator ARM command.")
 
 
 @asynccontextmanager
@@ -55,6 +69,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Serial Manager and Background Workers...")
     if blackbox:
         serial_mgr.register_telemetry_callback(blackbox.log_telemetry)
+    serial_mgr.register_link_callback(on_serial_link_change)
     await serial_mgr.start()
     broadcaster_task = asyncio.create_task(telemetry_broadcaster())
     watchdog_task = asyncio.create_task(browser_command_watchdog())
@@ -166,7 +181,7 @@ async def api_telemetry_latest(_token: str = Depends(verify_bearer_auth)):
     if not telem:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No telemetry available")
     return {
-        "state_code": telem.current_state,
+        "state_code": telem.state_code,
         "pitch_deg": telem.pitch_deg,
         "pitch_rate_dps": telem.pitch_rate_dps,
         "roll_deg": telem.roll_deg,
@@ -272,7 +287,7 @@ async def browser_command_watchdog():
     while True:
         await asyncio.sleep(0.050)
         telem = serial_mgr.latest_telemetry
-        is_armed = telem and telem.current_state == STATE_ARMED
+        is_armed = telem and telem.state_code == STATE_ARMED
 
         if is_armed:
             now = time.time()
@@ -401,6 +416,14 @@ async def websocket_endpoint(
                 })
                 continue
 
+            # 6b. Reject commands when serial link is down (fail-closed)
+            if not serial_mgr.is_connected:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Serial link to Mega is DOWN. Commands rejected until reconnection."
+                })
+                continue
+
             # 7. Per-Client Rate Limiting
             now = time.time()
             if (now - last_client_msg_time) < min_cmd_interval:
@@ -502,7 +525,7 @@ async def websocket_endpoint(
             primary_controller_ws = None
 
             telem = serial_mgr.latest_telemetry
-            if telem and telem.current_state == STATE_ARMED:
+            if telem and telem.state_code == STATE_ARMED:
                 # 1. Immediately force zero velocity
                 logger.warning("Controller lost while ARMED: commanding immediate ZERO VELOCITY.")
                 cmd_sequence_id = (cmd_sequence_id + 1) & 0xFFFF
@@ -522,7 +545,7 @@ async def websocket_endpoint(
                 async def auto_disarm_on_disconnect():
                     await asyncio.sleep(DISARM_ON_DISCONNECT_TIMEOUT_S)
                     curr = serial_mgr.latest_telemetry
-                    if curr and curr.current_state == STATE_ARMED and primary_controller_ws is None:
+                    if curr and curr.state_code == STATE_ARMED and primary_controller_ws is None:
                         logger.warning("Disarm timeout expired (%s s). Requesting DISARMED.", DISARM_ON_DISCONNECT_TIMEOUT_S)
                         await serial_mgr.send_arm_state(STATE_DISARMED)
 
@@ -563,7 +586,7 @@ async def telemetry_broadcaster():
             STATE_ARMED: "ARMED",
             STATE_FAULT: "FAULT"
         }
-        state_str = state_names.get(telem.current_state, "UNKNOWN")
+        state_str = state_names.get(telem.state_code, "UNKNOWN")
 
         # Decode fault descriptions
         err_desc = "NOMINAL"
@@ -579,9 +602,9 @@ async def telemetry_broadcaster():
             err_desc = "ESTOP_LATCHED"
 
         # Log state changes
-        if telem.current_state != last_broadcast_state:
+        if telem.state_code != last_broadcast_state:
             logger.info("Robot state machine transitioned to: %s (flags=0x%02X)", state_str, telem.error_flags)
-            last_broadcast_state = telem.current_state
+            last_broadcast_state = telem.state_code
 
         # Accurate packet freshness calculation
         packet_age_ms = round((time.time() - serial_mgr.last_rx_time) * 1000.0, 1) if serial_mgr.last_rx_time > 0 else 9999.0
@@ -597,8 +620,9 @@ async def telemetry_broadcaster():
         payload = {
             "type": "telemetry",
             "timestamp_ms": int(time.time() * 1000),
-            "state": state_str,
-            "state_code": telem.current_state,
+            "state": state_str if serial_mgr.is_connected else "DISARMED",
+            "state_code": telem.state_code if serial_mgr.is_connected else STATE_DISARMED,
+            "link_down": not serial_mgr.is_connected,
             "pose": {
                 "pitch": round(telem.pitch_deg, 2),
                 "pitch_rate": round(telem.pitch_rate_dps, 2),
@@ -628,7 +652,8 @@ async def telemetry_broadcaster():
                 "error_flags": telem.error_flags,
                 "error_desc": err_desc,
                 "packet_age_ms": packet_age_ms,
-                "last_cmd_id": telem.last_cmd_id
+                "last_cmd_id": telem.last_cmd_id,
+                "serial_connected": serial_mgr.is_connected
             }
         }
 
