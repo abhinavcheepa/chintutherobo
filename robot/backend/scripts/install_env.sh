@@ -20,8 +20,8 @@ ROBOT_AUTH_TOKEN=${TOKEN}
 ROBOT_SERIAL_PORT=/dev/ttyACM0
 ROBOT_SERIAL_BAUD=250000
 ROBOT_HOST=0.0.0.0
-ROBOT_PORT=8000
-ROBOT_CORS_ORIGINS=["https://192.168.4.1:8000","http://192.168.4.1:8000","https://chintu.robot:8000","http://chintu.robot:8000"]
+ROBOT_PORT=8765
+ROBOT_CORS_ORIGINS=["https://192.168.4.1:8765","http://192.168.4.1:8765","https://chintu.robot:8765","http://chintu.robot:8765"]
 ROBOT_ALLOWED_HOSTS=192.168.4.1,chintu.robot,localhost,127.0.0.1
 EOF
 

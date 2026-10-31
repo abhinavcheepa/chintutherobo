@@ -15,7 +15,7 @@ export const CONFIG = {
     _inMemoryAuthToken = val ? String(val).trim() : '';
   },
 
-  WS_PORT: 8000,
+  WS_PORT: 8765,
   COMMAND_RATE_HZ: 20,           // 50 ms loop during active motion
   KEEPALIVE_RATE_HZ: 10,         // 100 ms loop while ARMED (<= 150 ms requirement)
   STALE_TELEMETRY_THRESHOLD_MS: 300, // Fail-closed threshold for stale lockout

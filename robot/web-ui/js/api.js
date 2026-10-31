@@ -76,7 +76,7 @@ class ApiClient {
         this.reconnectAttempts = 0;
         State.set('connected', true);
         State.set('connStatus', 'ONLINE');
-        State.addLog('NET', `Connected to supervisor via ${protocol}//${host}:${port}`);
+        State.addLog('NET', `Connected to supervisor via ${wsProtocol}//${host}:${port}`);
 
         // If an E-STOP was triggered while offline, deliver it immediately upon link restore
         if (State.get('estopPending') || State.get('estopActive')) {

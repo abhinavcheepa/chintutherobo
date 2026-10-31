@@ -95,8 +95,8 @@ table inet filter {
         # DHCP on wlan0
         iif "wlan0" udp dport { 67, 68 } accept
 
-        # Web supervisor on TCP 8000
-        tcp dport 8000 accept
+        # Web supervisor on TCP 8765
+        tcp dport 8765 accept
 
         # SSH only on wired interface (eth0)
         iif "eth0" tcp dport 22 accept
@@ -123,7 +123,7 @@ echo "======================================================================"
 echo "[+] SUCCESS: Hotspot configured!"
 echo "    SSID:       ${HOTSPOT_SSID}"
 echo "    Passphrase: ${HOTSPOT_PSK}"
-echo "    IP:         192.168.4.1 (or https://chintu.robot:8000)"
+echo "    IP:         192.168.4.1 (or https://chintu.robot:8765)"
 echo "    NOTICE:     Firewall safeguard running (PID ${SAFEGUARD_PID})."
 echo "                Run 'kill ${SAFEGUARD_PID}' to keep firewall active."
 echo "======================================================================"

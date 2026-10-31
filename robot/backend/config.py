@@ -70,7 +70,7 @@ MAX_YAW_RATE_RAD_S = 2.50         # Max angular rate
 # NETWORK & AUTHENTICATION
 # -----------------------------------------------------------------------------
 SERVER_HOST = os.getenv("ROBOT_HOST", "0.0.0.0")
-SERVER_PORT = int(os.getenv("ROBOT_PORT", "8000"))
+SERVER_PORT = int(os.getenv("ROBOT_PORT", "8765"))
 ENVIRONMENT = os.getenv("ROBOT_ENVIRONMENT", "production").lower()
 AUTH_TOKEN = os.getenv("ROBOT_AUTH_TOKEN", "")
 
@@ -96,7 +96,7 @@ if ENVIRONMENT == "production" and len(AUTH_TOKEN.strip()) < 32:
     sys.exit(f"FATAL: In production mode, ROBOT_AUTH_TOKEN must be at least 32 characters (got {len(AUTH_TOKEN.strip())}). Supervisor refuses to start.")
 
 # CORS & Trusted Hosts configuration
-default_cors = "https://192.168.4.1:8000,http://192.168.4.1:8000,https://chintu.robot:8000,http://chintu.robot:8000,https://localhost:8000,http://localhost:8000,http://127.0.0.1:8000"
+default_cors = "https://192.168.4.1:8765,http://192.168.4.1:8765,https://chintu.robot:8765,http://chintu.robot:8765,https://localhost:8765,http://localhost:8765,http://127.0.0.1:8765"
 raw_cors = os.getenv("ROBOT_CORS_ORIGINS", default_cors)
 if raw_cors.strip().startswith("["):
     import json

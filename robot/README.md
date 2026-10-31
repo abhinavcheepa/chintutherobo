@@ -9,7 +9,7 @@ A production-grade, distributed embedded robotics stack for a two-legged self-ba
 ```
 [ Web Browser PWA (Phone / Tablet) ]
              ▲
-             │ Wi-Fi Hotspot (192.168.4.1:8000) / WebSocket JSON (20-50 Hz)
+             │ Wi-Fi Hotspot (192.168.4.1:8765) / WebSocket JSON (20-50 Hz)
              ▼
 [ Raspberry Pi Supervisor (FastAPI + Asyncio) ]
              ▲
@@ -132,7 +132,7 @@ sudo systemctl enable --now chintu.service
    - **SSID:** `ChintuRobot_XXXX` (where XXXX is derived from MAC address)
    - **Password:** `<dynamic passphrase printed by setup_hotspot.sh>`
 3. Open your mobile browser and navigate to:
-   - `http://192.168.4.1:8000` (or `http://chintu.robot:8000`)
+   - `http://192.168.4.1:8765` (or `http://chintu.robot:8765`)
 4. Verify the connection badge shows `ONLINE`.
 5. Hold the robot upright at vertical balance ($0^\circ$).
 6. Click **ARM ROBOT**. The robot will enter `CALIBRATING` for 2 seconds to zero gyro biases and then transition to `ARMED`.

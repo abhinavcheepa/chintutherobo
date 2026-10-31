@@ -3,7 +3,7 @@
 ## 1. Overview
 The communication architecture consists of two distinct tiers:
 1. **Tier 1 (High Reliability Embedded Link):** Raspberry Pi $\longleftrightarrow$ Arduino Mega 2560 via USB Serial (`/dev/ttyACM0` or `/dev/ttyUSB0`) running at **250,000 baud**, 8N1. Uses a framed binary protocol with CRC16-CCITT for deterministic throughput and minimal AVR cycle overhead.
-2. **Tier 2 (Telemetry & Control Interface):** Raspberry Pi $\longleftrightarrow$ Web Client via WebSocket (`ws://192.168.4.1:8000/ws`) exchanging JSON payloads validated against Pydantic schemas.
+2. **Tier 2 (Telemetry & Control Interface):** Raspberry Pi $\longleftrightarrow$ Web Client via WebSocket (`ws://192.168.4.1:8765/ws`) exchanging JSON payloads validated against Pydantic schemas.
 
 ---
 
@@ -128,7 +128,7 @@ struct __attribute__((packed)) EmergencyStopPayload {
 
 ## 3. Tier 2: Pi $\longleftrightarrow$ Web UI WebSocket Protocol
 
-The Web UI connects to `ws://<pi-ip>:8000/ws?token=<token>`.
+The Web UI connects to `ws://<pi-ip>:8765/ws?token=<token>`.
 
 ### 3.1 Client to Pi Commands
 

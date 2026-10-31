@@ -43,6 +43,8 @@ robot/
 
 ## 🚀 Getting Started
 
+📖 **[Field Deployment & Operator Guide (`PHYSICAL_DEPLOYMENT_GUIDE.md`)](./PHYSICAL_DEPLOYMENT_GUIDE.md)**: Complete step-by-step physical runbook from firmware flashing to driving via dashboard.
+
 Please refer to the comprehensive **[Primary Robot Documentation (`robot/README.md`)](./robot/README.md)** for:
 1. Canonical pinout allocation for Arduino Mega 2560 and Raspberry Pi.
 2. Production secrets setup (`/etc/chintu.env`) and token rotation (`gen_token.py`).

@@ -7,7 +7,7 @@ Simulates Arduino Mega real-time telemetry, state machine transitions,
 Run with:
     python robot/tools/mock_ws_server.py
 Then open:
-    http://localhost:8000
+    http://localhost:8765
 """
 
 import asyncio
@@ -412,7 +412,7 @@ async def startup_event():
     asyncio.create_task(telemetry_broadcast_loop())
     print("\n=======================================================")
     print(" CHINTU BIPED HARDENED MOCK SUPERVISOR RUNNING")
-    print(" UI: http://localhost:8000")
+    print(" UI: http://localhost:8765")
     print(" Comms Watchdog: 400ms timeout simulation active")
     print(" Localhost Protected Simulation Endpoints:")
     print("   POST /api/simulate/fault?flag=1")
@@ -424,4 +424,4 @@ async def startup_event():
     print("=======================================================\n")
 
 if __name__ == "__main__":
-    uvicorn.run("mock_ws_server:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("mock_ws_server:app", host="0.0.0.0", port=8765, reload=False)
