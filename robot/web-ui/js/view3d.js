@@ -27,31 +27,37 @@ class Robot3DView {
       return;
     }
 
-    const width = this.container.clientWidth || 320;
-    const height = this.container.clientHeight || 260;
+    const width = this.container.clientWidth || 450;
+    const height = this.container.clientHeight || 380;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x090d16, 0.004);
+    this.scene.background = new THREE.Color(0x090d16);
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.05, 50);
-    this.camera.position.set(0.40, 0.28, 0.50);
-    this.camera.lookAt(0, 0.09, 0);
+    this.camera.position.set(0.36, 0.22, 0.44);
+    this.camera.lookAt(0, 0.07, 0);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
 
-    // Ambient & Accent Lights
-    const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Ambient Light
+    const ambLight = new THREE.AmbientLight(0xffffff, 0.85);
     this.scene.add(ambLight);
 
-    const dirLight = new THREE.DirectionalLight(0x00e5ff, 1.4);
-    dirLight.position.set(2, 4, 3);
-    this.scene.add(dirLight);
+    // Key Light
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight1.position.set(2, 4, 3);
+    this.scene.add(dirLight1);
+
+    // Cyan Fill / Accent Light
+    const dirLight2 = new THREE.DirectionalLight(0x00e5ff, 1.0);
+    dirLight2.position.set(-2, 1, -2);
+    this.scene.add(dirLight2);
 
     // Ground Grid
-    const grid = new THREE.GridHelper(2.0, 20, 0x00e5ff, 0x1e293b);
+    const grid = new THREE.GridHelper(1.6, 16, 0x00e5ff, 0x1e293b);
     grid.position.y = -0.04;
     this.scene.add(grid);
 
@@ -66,43 +72,84 @@ class Robot3DView {
   buildRobot() {
     this.robotGroup = new THREE.Group();
 
-    // Main Chassis Body (Pi + Mega + LiPo)
-    const chassisGeo = new THREE.BoxGeometry(0.12, 0.08, 0.16);
+    // 1. Main Chassis Body (Upper Torso)
+    const chassisGeo = new THREE.BoxGeometry(0.12, 0.07, 0.16);
     const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      metalness: 0.8,
+      color: 0x0ea5e9, // Bright vibrant tech cyan-blue
+      metalness: 0.6,
       roughness: 0.25
     });
     const chassis = new THREE.Mesh(chassisGeo, chassisMat);
-    chassis.position.y = 0.12;
+    chassis.position.y = 0.10;
     this.robotGroup.add(chassis);
 
-    // Glowing Cyan Status Visor
-    const visorGeo = new THREE.BoxGeometry(0.09, 0.016, 0.01);
-    const visorMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+    // Electronics & Battery Pack on top
+    const topPackGeo = new THREE.BoxGeometry(0.09, 0.035, 0.12);
+    const topPackMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      metalness: 0.8,
+      roughness: 0.3
+    });
+    const topPack = new THREE.Mesh(topPackGeo, topPackMat);
+    topPack.position.set(0, 0.145, 0);
+    this.robotGroup.add(topPack);
+
+    // Glowing Cyan Status Visor / Eyes
+    const visorGeo = new THREE.BoxGeometry(0.08, 0.016, 0.01);
+    const visorMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
     const visor = new THREE.Mesh(visorGeo, visorMat);
-    visor.position.set(0, 0.13, 0.081);
+    visor.position.set(0, 0.105, 0.082);
     this.robotGroup.add(visor);
 
-    // Helper for 3-link leg assembly
+    // Rear Status LED
+    const ledGeo = new THREE.SphereGeometry(0.008, 12, 12);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+    const led = new THREE.Mesh(ledGeo, ledMat);
+    led.position.set(0, 0.105, -0.082);
+    this.robotGroup.add(led);
+
+    // 2. Helper for 3-link leg assembly
     const createLeg = (isLeft) => {
       const legRoot = new THREE.Group();
-      legRoot.position.set(isLeft ? -0.08 : 0.08, 0.10, 0);
+      const xPos = isLeft ? -0.075 : 0.075;
+      legRoot.position.set(xPos, 0.08, 0);
 
-      // Thigh Link (120mm = 0.12m)
-      const thighGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.08, 12);
-      const metalMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 });
+      // Hip Actuator Bracket
+      const hipBracketGeo = new THREE.BoxGeometry(0.025, 0.03, 0.03);
+      const bracketMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7 });
+      const hipBracket = new THREE.Mesh(hipBracketGeo, bracketMat);
+      legRoot.add(hipBracket);
+
+      // Thigh Link (Aluminum Rod)
+      const thighGeo = new THREE.CylinderGeometry(0.007, 0.007, 0.08, 12);
+      const metalMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
       const thigh = new THREE.Mesh(thighGeo, metalMat);
       thigh.position.y = -0.04;
       legRoot.add(thigh);
 
-      // Wheel (80mm diameter = 0.04m radius)
-      const wheelGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.022, 24);
-      wheelGeo.rotateZ(Math.PI / 2);
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.75 });
-      const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-      wheel.position.y = -0.10;
-      legRoot.add(wheel);
+      // Knee Joint Servo
+      const kneeGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.025, 16);
+      kneeGeo.rotateZ(Math.PI / 2);
+      const kneeMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6 });
+      const knee = new THREE.Mesh(kneeGeo, kneeMat);
+      knee.position.y = -0.075;
+      legRoot.add(knee);
+
+      // Wheel Rim
+      const wheelRimGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.024, 24);
+      wheelRimGeo.rotateZ(Math.PI / 2);
+      const wheelRimMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.7, roughness: 0.3 });
+      const wheelRim = new THREE.Mesh(wheelRimGeo, wheelRimMat);
+      wheelRim.position.y = -0.11;
+      legRoot.add(wheelRim);
+
+      // Wheel Tire (Outer Rubber Ring)
+      const tireGeo = new THREE.TorusGeometry(0.035, 0.009, 12, 24);
+      tireGeo.rotateY(Math.PI / 2);
+      const tireMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+      const tire = new THREE.Mesh(tireGeo, tireMat);
+      tire.position.y = -0.11;
+      legRoot.add(tire);
 
       return legRoot;
     };
@@ -117,10 +164,15 @@ class Robot3DView {
   }
 
   onTabChange(activeTab) {
-    if (activeTab === 'drive' || activeTab === 'telemetry') {
+    if (activeTab === 'telemetry') {
+      setTimeout(() => {
+        this.onResize();
+        this.start();
+      }, 50);
+    } else if (activeTab === 'drive') {
       this.start();
     } else {
-      this.stop(); // Conserve mobile GPU resources when on other tabs
+      this.stop();
     }
   }
 
@@ -128,6 +180,7 @@ class Robot3DView {
     if (!this.container || !this.renderer || !this.camera) return;
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
+    if (w < 20 || h < 20) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
@@ -158,10 +211,10 @@ class Robot3DView {
   updatePose() {
     if (!this.robotGroup) return;
 
-    const pitchDeg = State.get('pitch');
-    const rollDeg = State.get('roll');
-    const heightL = State.get('legHeightL') || 118;
-    const heightR = State.get('legHeightR') || 118;
+    const pitchDeg = State.get('pitch') || 0.0;
+    const rollDeg = State.get('roll') || 0.0;
+    const heightL = State.get('legHeightL') || 135;
+    const heightR = State.get('legHeightR') || 135;
 
     // Pitch & Roll rotations
     this.robotGroup.rotation.x = THREE.MathUtils.degToRad(-pitchDeg);
@@ -169,8 +222,8 @@ class Robot3DView {
 
     // Leg extension scaling
     if (this.legL && this.legR) {
-      this.legL.scale.y = heightL / 118.0;
-      this.legR.scale.y = heightR / 118.0;
+      this.legL.scale.y = heightL / 135.0;
+      this.legR.scale.y = heightR / 135.0;
     }
   }
 }

@@ -32,7 +32,8 @@ class TelemetryChartManager {
     if (this.cvsWheels) this.ctxWheels = this.cvsWheels.getContext('2d');
     if (this.cvsPower) this.ctxPower = this.cvsPower.getContext('2d');
 
-    // Subscribe to state changes
+    // Subscribe to incoming telemetry frame updates
+    State.on('lastRxTimestamp', () => this.recordSample());
     State.on('pitch', () => this.recordSample());
 
     this.startRenderLoop();
@@ -43,13 +44,13 @@ class TelemetryChartManager {
 
     const sample = {
       timestamp: performance.now(),
-      pitch: State.get('pitch'),
-      pitchRate: State.get('pitchRate'),
-      wheelVelL: State.get('wheelVelL'),
-      wheelVelR: State.get('wheelVelR'),
-      cmdVelX: State.get('linearX'),
-      batteryV: State.get('batteryVoltage'),
-      jitterUs: State.get('loopJitterUs')
+      pitch: typeof State.get('pitch') === 'number' ? State.get('pitch') : 0.0,
+      pitchRate: typeof State.get('pitchRate') === 'number' ? State.get('pitchRate') : 0.0,
+      wheelVelL: typeof State.get('wheelVelL') === 'number' ? State.get('wheelVelL') : 0,
+      wheelVelR: typeof State.get('wheelVelR') === 'number' ? State.get('wheelVelR') : 0,
+      cmdVelX: typeof State.get('linearX') === 'number' ? State.get('linearX') : 0.0,
+      batteryV: typeof State.get('batteryVoltage') === 'number' ? State.get('batteryVoltage') : 11.8,
+      jitterUs: typeof State.get('loopJitterUs') === 'number' ? State.get('loopJitterUs') : 42
     };
 
     this.history.push(sample);
@@ -112,16 +113,16 @@ class TelemetryChartManager {
 
     this.renderStrip(this.ctxPitch, this.cvsPitch, [
       { key: 'pitch', color: '#00e5ff', label: 'Pitch (°)' },
-      { key: 'pitchRate', color: '#ffb300', label: 'Pitch Rate (°/s)' }
+      { key: 'pitchRate', color: '#f43f5e', label: 'Pitch Rate (°/s)' }
     ], -35, 35, true);
 
     this.renderStrip(this.ctxWheels, this.cvsWheels, [
-      { key: 'wheelVelL', color: '#00e676', label: 'Left (st/s)' },
-      { key: 'wheelVelR', color: '#e91e63', label: 'Right (st/s)' }
+      { key: 'wheelVelL', color: '#10b981', label: 'Left (st/s)' },
+      { key: 'wheelVelR', color: '#f59e0b', label: 'Right (st/s)' }
     ], -6000, 6000, true);
 
     this.renderStrip(this.ctxPower, this.cvsPower, [
-      { key: 'batteryV', color: '#ffc107', label: 'Battery (V)' }
+      { key: 'batteryV', color: '#38bdf8', label: 'Battery (V)' }
     ], 9.5, 12.6, false);
   }
 
@@ -132,18 +133,19 @@ class TelemetryChartManager {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Subtle Grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    // Subtle Grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, h * 0.25); ctx.lineTo(w, h * 0.25);
+    ctx.moveTo(0, h * 0.50); ctx.lineTo(w, h * 0.50);
     ctx.moveTo(0, h * 0.75); ctx.lineTo(w, h * 0.75);
     ctx.stroke();
 
-    // Zero Reference
+    // Zero Reference line
     if (drawZero && minVal < 0 && maxVal > 0) {
       const zeroY = h - ((0 - minVal) / (maxVal - minVal)) * h;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY);
@@ -151,18 +153,19 @@ class TelemetryChartManager {
       ctx.setLineDash([]);
     }
 
-    if (this.history.length < 2) return;
+    if (this.history.length === 0) return;
 
-    const step = w / (this.maxSamples - 1);
-    const startIdx = this.maxSamples - this.history.length;
+    const step = w / Math.max(1, this.maxSamples - 1);
+    const startIdx = Math.max(0, this.maxSamples - this.history.length);
 
     for (const s of series) {
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
 
       for (let i = 0; i < this.history.length; i++) {
-        const val = Math.max(minVal, Math.min(maxVal, this.history[i][s.key] || 0));
+        const raw = this.history[i][s.key];
+        const val = Math.max(minVal, Math.min(maxVal, typeof raw === 'number' ? raw : 0));
         const x = (startIdx + i) * step;
         const y = h - ((val - minVal) / (maxVal - minVal)) * h;
 

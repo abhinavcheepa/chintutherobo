@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chintu Robot: Comprehensive Repository Analysis, Flaws Audit & Engineering Recommendations</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 14mm 16mm 14mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cover {
+    page-break-after: always;
+    padding: 40px 20px 20px 20px;
+    border-bottom: 3px solid #0284c7;
+    margin-bottom: 20px;
+  }
+
+  .cover-badge {
+    display: inline-block;
+    background-color: #0369a1;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 9pt;
+    padding: 4px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  h1.cover-title {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 0 0 10px 0;
+  }
+
+  .cover-subtitle {
+    font-size: 13pt;
+    color: #475569;
+    font-weight: 500;
+    margin: 0 0 25px 0;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 25px;
+    font-size: 9.5pt;
+  }
+
+  .meta-item strong {
+    color: #0f172a;
+    display: inline-block;
+    width: 140px;
+  }
+
+  h2 {
+    font-size: 14.5pt;
+    font-weight: 700;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 6px;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #0369a1;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+  }
+
+  h4 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #334155;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+  }
+
+  ul, ol {
+    margin: 0 0 12px 0;
+    padding-left: 22px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 18px 0;
+    font-size: 9pt;
+    page-break-inside: avoid;
+  }
+
+  th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #0f172a;
+  }
+
+  td {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 8.8pt;
+    background-color: #f1f5f9;
+    color: #b91c1c;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+  }
+
+  pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    margin: 10px 0 14px 0;
+    page-break-inside: avoid;
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    border: none;
+    font-size: inherit;
+  }
+
+  .badge-critical {
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .badge-warning {
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .badge-info {
+    background-color: #3b82f6;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    border-left: 4px solid;
+    page-break-inside: avoid;
+    font-size: 9.5pt;
+  }
+
+  .alert-danger {
+    background-color: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+  }
+
+  .alert-warning {
+    background-color: #fffbeb;
+    border-color: #f59e0b;
+    color: #92400e;
+  }
+
+  .alert-info {
+    background-color: #f0f9ff;
+    border-color: #0284c7;
+    color: #075985;
+  }
+
+  .alert-success {
+    background-color: #f0fdf4;
+    border-color: #22c55e;
+    color: #166534;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="cover-badge">Engineering Deep Dive & System Audit</div>
+  <h1 class="cover-title">CHINTU ROBOT PLATFORM</h1>
+  <div class="cover-subtitle">Complete Repository Analysis, Breaking Points & Flaws Audit, Research Document Breakdown and Engineering Recommendations</div>
+  
+  <p>This technical report provides a 360-degree audit of the entire Chintu Two-Wheeled Legged Robot repository (<code>chintutherobo</code>). It synthesizes the mechanical, firmware, supervisory, network, and theoretical components of the platform, exposes all documented and latent bugs ("cracks" and broken points), fully details the 10-phase research document, and presents prioritized engineering solutions.</p>
+
+  <div class="meta-grid">
+    <div class="meta-item"><strong>Robot Target:</strong> Two-Wheeled Legged Inverted Pendulum</div>
+    <div class="meta-item"><strong>MCU Core:</strong> Arduino Mega 2560 (Hard Real-Time 200 Hz)</div>
+    <div class="meta-item"><strong>Supervisor:</strong> Raspberry Pi 4/5 (FastAPI + Asyncio)</div>
+    <div class="meta-item"><strong>Comms Link:</strong> USB Serial @ 250,000 baud (CRC16)</div>
+    <div class="meta-item"><strong>Client UI:</strong> HTML5 / CSS3 / ES6 PWA Dashboard</div>
+    <div class="meta-item"><strong>Audit Date:</strong> October 2026</div>
+  </div>
+</div>
+
+<!-- SECTION 1 -->
+<h2>1. System Architecture & Physical Baseline</h2>
+
+<h3>1.1 Hardware & Software Partitioning</h3>
+<p>The Chintu architecture adopts a rigorous two-tier operational hierarchy designed to decouple hard real-time dynamic balance from high-level supervision:</p>
+<ul>
+  <li><strong>Tier 1 — Real-Time Control Core (Arduino Mega 2560)</strong>:
+    <ul>
+      <li>200 Hz hard real-time balance loop driven by 5 ms delta-time ticks.</li>
+      <li>MPU-6050 6-DOF IMU sampled via I2C Fast Mode (400 kHz) with a 2-stage complementary filter state estimator.</li>
+      <li>Timer3 and Timer4 CTC compare-match interrupts generating microstepped pulses for two NEMA17 stepper wheel drives up to 25 kHz.</li>
+      <li>Timer5 hardware/software PWM driving 6x MG995 servos for 3-link planar leg inverse kinematics.</li>
+      <li>Hardware E-Stop interrupt on Pin 2 (INT4) triggering sub-microsecond motor disable.</li>
+    </ul>
+  </li>
+  <li><strong>Tier 2 — High-Level Supervisor (Raspberry Pi 4/5)</strong>:
+    <ul>
+      <li>FastAPI asynchronous server managing framed binary serial communication (CRC-16-CCITT) at 250,000 baud.</li>
+      <li>Wi-Fi Access Point host (192.168.4.1) with client isolation and nftables firewall.</li>
+      <li>WebSocket broadcast engine serving JSON telemetry to operators at 20 Hz.</li>
+      <li>Single-use ticket authentication mechanism protecting against unauthorized drive hijacking.</li>
+      <li>High-speed flight blackbox recorder logging telemetry to JSONL and CSV formats.</li>
+    </ul>
+  </li>
+  <li><strong>Operator Dashboard (Web-UI PWA)</strong>:
+    <ul>
+      <li>Mobile/tablet optimized responsive dashboard built with Three.js (interactive 3D digital twin), real-time canvas charts, dual virtual joysticks, and safety interlocks.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>1.2 Canonical Microcontroller Pinout Allocation (Arduino Mega 2560)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Peripheral</th>
+      <th>Pin Name</th>
+      <th>Mega 2560 Pin</th>
+      <th>Hardware Mode / Timer</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MPU-6050 IMU</strong></td>
+      <td>SDA</td>
+      <td>Pin 20</td>
+      <td>Bidirectional (I2C)</td>
+      <td>Fast Mode 400 kHz data line</td>
+    </tr>
+    <tr>
+      <td><strong>MPU-6050 IMU</strong></td>
+      <td>SCL</td>
+      <td>Pin 21</td>
+      <td>Output (I2C)</td>
+      <td>Clock line</td>
+    </tr>
+    <tr>
+      <td><strong>Left Stepper</strong></td>
+      <td>STEP</td>
+      <td>Pin 5</td>
+      <td>Timer3 CTC (PE3)</td>
+      <td>Direct OCR3A compare-match pulse generator</td>
+    </tr>
+    <tr>
+      <td><strong>Left Stepper</strong></td>
+      <td>DIR</td>
+      <td>Pin 6</td>
+      <td>Digital Output (PH3)</td>
+      <td>Direction control</td>
+    </tr>
+    <tr>
+      <td><strong>Right Stepper</strong></td>
+      <td>STEP</td>
+      <td>Pin 7</td>
+      <td>Timer4 CTC (PH4)</td>
+      <td>Direct OCR4A compare-match pulse generator</td>
+    </tr>
+    <tr>
+      <td><strong>Right Stepper</strong></td>
+      <td>DIR</td>
+      <td>Pin 8</td>
+      <td>Digital Output (PH5)</td>
+      <td>Direction control (inverted in firmware)</td>
+    </tr>
+    <tr>
+      <td><strong>Steppers Enable</strong></td>
+      <td>EN</td>
+      <td>Pin 4</td>
+      <td>Digital Output (Active LOW)</td>
+      <td>Global driver tri-state enable/disable</td>
+    </tr>
+    <tr>
+      <td><strong>Left Hip Roll</strong></td>
+      <td>SERVO 1</td>
+      <td>Pin 44</td>
+      <td>Timer5 PWM (PL5)</td>
+      <td>Lateral hip leveling (-20° to +20°)</td>
+    </tr>
+    <tr>
+      <td><strong>Left Hip Pitch</strong></td>
+      <td>SERVO 2</td>
+      <td>Pin 45</td>
+      <td>Timer5 PWM (PL4)</td>
+      <td>Thigh flexion/extension</td>
+    </tr>
+    <tr>
+      <td><strong>Left Knee</strong></td>
+      <td>SERVO 3</td>
+      <td>Pin 46</td>
+      <td>Timer5 PWM (PL3)</td>
+      <td>Knee flexion/extension</td>
+    </tr>
+    <tr>
+      <td><strong>Right Hip Roll</strong></td>
+      <td>SERVO 4</td>
+      <td>Pin 11</td>
+      <td>Timer5 PWM (PB5)</td>
+      <td>Lateral hip leveling (symmetrical)</td>
+    </tr>
+    <tr>
+      <td><strong>Right Hip Pitch</strong></td>
+      <td>SERVO 5</td>
+      <td>Pin 12</td>
+      <td>Timer5 PWM (PB6)</td>
+      <td>Thigh flexion/extension</td>
+    </tr>
+    <tr>
+      <td><strong>Right Knee</strong></td>
+      <td>SERVO 6</td>
+      <td>Pin 38</td>
+      <td>Timer5 PWM (PD7)</td>
+      <td>Knee flexion/extension (Moved from Pin 13 to avoid LED conflict)</td>
+    </tr>
+    <tr>
+      <td><strong>Status LED</strong></td>
+      <td>LED</td>
+      <td>Pin 13</td>
+      <td>Digital Output (PB7)</td>
+      <td>Dedicated onboard system heartbeat indicator</td>
+    </tr>
+    <tr>
+      <td><strong>Hardware E-STOP</strong></td>
+      <td>ESTOP</td>
+      <td>Pin 2</td>
+      <td>Input Pull-up (INT4)</td>
+      <td>Normally closed to GND; instant ISR trip on open</td>
+    </tr>
+    <tr>
+      <td><strong>Battery Sense</strong></td>
+      <td>BATT</td>
+      <td>Pin A0</td>
+      <td>Analog Input (ADC0)</td>
+      <td>Resistor divider sensing main 3S LiPo rail</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.3 Power Distribution Topology</h3>
+<p>Due to the high dynamic current draw of 6 high-torque MG995 servos (up to 15A combined stall), the power architecture enforces physical and electrical rail segregation:</p>
+<ul>
+  <li><strong>Main Source:</strong> 3S LiPo Battery (11.1V–12.6V, 4000mAh, 30C discharge) with a 30A main blade fuse and mechanical kill switch.</li>
+  <li><strong>Servo Rail (6.0V 15A BEC):</strong> Dedicated high-efficiency buck regulator with a 4700µF ultra-low-ESR capacitor buffer to absorb servo inductive kickback.</li>
+  <li><strong>Computing Logic Rail (5.1V 4A BEC):</strong> Independent buck converter supplying clean USB-C power to the Raspberry Pi 4/5 and powering the Mega 2560 via USB.</li>
+  <li><strong>Motor Rail (Raw 12V LiPo):</strong> Directly feeds VMOT on TMC2209/A4988 stepper drivers, decoupled with 100µF 35V low-ESR capacitors at each driver board.</li>
+  <li><strong>Star Grounding:</strong> All grounds (Battery GND, BEC GND, Pi GND, Stepper GND) meet at a single central copper busbar to eliminate ground loops that cause microcontroller resets.</li>
+</ul>
+
+<!-- SECTION 2 -->
+<div class="page-break"></div>
+<h2>2. Full Breakdown of the Research Document (`Wheel_Leg_Robot_Research_Document.docx`)</h2>
+
+<p>The research document establishes the theoretical roadmap for transforming Chintu from an empirical prototype into an advanced simulated, autonomous, and reinforcement-learning-capable robotics platform. Below is the complete dissection of each section:</p>
+
+<h3>Section 1: Project Goal & Core Principle</h3>
+<ul>
+  <li><strong>Goal:</strong> Build an end-to-end simulation $\rightarrow$ control $\rightarrow$ learning pipeline for a two-wheeled legged biped.</li>
+  <li><strong>Core Axiom:</strong> <em>"Pehle physics aur control sahi banao, baad mein RL aur Sim-to-Real."</em> (First establish accurate multi-body physics and robust classical controllers before training reinforcement learning agents or deploying Sim-to-Real techniques).</li>
+</ul>
+
+<h3>Section 2: Final Recommended Tech Stack & Sequencing</h3>
+<p>The document mandates a fixed 7-tool stack to prevent tool fatigue and fragmentation:</p>
+<ol>
+  <li><strong>Fusion 360 (CAD) [Day 1]:</strong> Mechanical modeling, assembly constraints, center-of-mass, and inertia tensor calculations.</li>
+  <li><strong>Python + VS Code + Git [Day 1]:</strong> Base development environment, automated testing, and version control.</li>
+  <li><strong>MuJoCo [Phase 2 onwards] ★:</strong> The primary physics engine. Selected for superior multi-contact handling, stability, and speed. <em>Rule: Isaac Sim must not be used as the initial simulator.</em></li>
+  <li><strong>NumPy + SciPy + Matplotlib [Phase 3 onwards]:</strong> Numerical kinematics, control theory derivations (LQR, Bode plots), and telemetry visualization.</li>
+  <li><strong>PyTorch + Gymnasium [After Phase 9]:</strong> Reinforcement Learning (PPO) environment definition and neural network policy training.</li>
+  <li><strong>ROS 2 [Hardware Phase]:</strong> Node orchestration, hardware abstraction, and inter-process communication for physical robot deployment.</li>
+  <li><strong>Isaac Sim / Isaac Lab [Post-MuJoCo]:</strong> Massive GPU-parallelized domain randomization and sim-to-real transfer once MuJoCo policies are stable.</li>
+</ol>
+
+<h3>Section 3: Core Simulation & Control Flow Pipeline</h3>
+<p>The document dictates the dataflow across development stages:</p>
+<pre><code>Fusion 360 (CAD)
+      ▼
+MJCF Model (robot.xml)
+      ▼
+MuJoCo Physics Engine
+      ▼
+Virtual Sensors (IMU + Encoders + Contact)
+      ▼
+State Estimation (Complementary / Kalman Filter)
+      ▼
+Cascaded Controller (PID → LQR → MPC)
+      ▼
+Actuator Commands (Torques / Velocities)
+      ▼
+MuJoCo Feedback Loop
+      ▼ [Later Stage]
+Gymnasium Environment → PyTorch PPO → Isaac Lab Domain Randomization → Real Robot (ROS 2)</code></pre>
+
+<h3>Section 4: The 10-Phase Exact Execution Roadmap</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>Title</th>
+      <th>Key Tasks & Objectives</th>
+      <th>Validation Gate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Phase 1</strong></td>
+      <td>CAD Design</td>
+      <td>Model torso, hips, thighs, knees, shanks, wheel hubs; define precise masses and centers of mass.</td>
+      <td>CAD assembly free of mechanical interference.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 2</strong></td>
+      <td>MuJoCo MJCF Model</td>
+      <td>Export CAD to <code>robot.xml</code>. Define joints (hip, knee, wheel), joint limits, friction, damping, contacts.</td>
+      <td>Model loads cleanly in <code>mujoco</code> viewer.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 3</strong></td>
+      <td>Pure Physics Validation</td>
+      <td>Passive drop test with zero actuator torque. Verify gravity, restitution, contact stability, and CoG.</td>
+      <td>Robot settles naturally without physics explosions or slipping.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 4</strong></td>
+      <td>Actuator Isolation Testing</td>
+      <td>Command torques to hip, knee, and wheel motors individually in open-loop.</td>
+      <td>Joints move in correct angular directions within limits.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 5</strong></td>
+      <td>Virtual Sensor Suite</td>
+      <td>Simulate IMU (pitch angle, pitch rate), joint encoders, and ground contact sensors.</td>
+      <td>Sensor streams output expected simulated values.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 6</strong></td>
+      <td>Single-Joint PID Control</td>
+      <td>Implement closed-loop PID control on individual leg joints for setpoint tracking.</td>
+      <td>Step response converges within 150 ms without overshoot.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 7</strong></td>
+      <td>Pitch Balance Controller</td>
+      <td>Implement inverted-pendulum balance: IMU pitch $\rightarrow$ wheel motor torque.</td>
+      <td>Robot balances upright indefinitely on flat ground.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 8</strong></td>
+      <td>Leg-Wheel Coordination</td>
+      <td>Coordinate dynamic leg height variations (crouching, extending) while maintaining pitch balance.</td>
+      <td>Legs change height smoothly without destabilizing pitch.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 9</strong></td>
+      <td>Terrain & Disturbance Rejection</td>
+      <td>Introduce external horizontal push forces, inclined ramps, and uneven rough surfaces.</td>
+      <td>Robot recovers from pushes up to 15 N·s impulse.</td>
+    </tr>
+    <tr>
+      <td><strong>Phase 10</strong></td>
+      <td>Advanced Control & Learning</td>
+      <td>Formulate LQR / MPC. Train Gymnasium PPO policies; export to Isaac Lab for domain randomization.</td>
+      <td>Sim-to-Real policy transfer onto physical hardware.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Section 5: Strict Operational Prohibitions</h3>
+<ul>
+  <li><strong>Prohibition 1:</strong> Do not start with Reinforcement Learning. Classical control must be mastered first.</li>
+  <li><strong>Prohibition 2:</strong> Do not adopt Isaac Sim on Day 1. It introduces unnecessary complexity early on.</li>
+  <li><strong>Prohibition 3:</strong> ROS 2 is not needed until physical hardware integration.</li>
+  <li><strong>Prohibition 4:</strong> Prefer MJCF over URDF for initial MuJoCo development.</li>
+  <li><strong>Prohibition 5:</strong> Data plotting is mandatory after every phase (Pitch vs. Time, Wheel Speed, Joint Angles, Torque, CoM trajectory).</li>
+</ul>
+
+<!-- SECTION 3 -->
+<div class="page-break"></div>
+<h2>3. Documented Physical Breaking Points, Cracks & Singularities</h2>
+
+<p>The codebase and mechanical design explicitly account for several critical mechanical, electrical, and control boundaries:</p>
+
+<h3>3.1 Straight-Leg Kinematic Singularity ($d_{\max} = 221\text{ mm}$)</h3>
+<div class="alert alert-danger">
+  <strong>Singularity Boundary:</strong> Link lengths are Thigh $L_2 = 120\text{ mm}$ and Shank $L_3 = 101\text{ mm}$. The theoretical maximum vertical extension is $d_{\max} = L_2 + L_3 = 221\text{ mm}$.
+</div>
+<p>When the knee joint approaches $0^\circ$ (straight line), the manipulator Jacobian determinant approaches zero ($\det(J) \to 0$). To accelerate the wheel hub forward or backward, the required joint angular velocity approaches infinity ($\dot{\theta} \to \infty$). Any attempt to balance in this configuration causes immediate loss of control authority. The software enforces a <strong>46 mm safety margin</strong>, clamping maximum extension to <strong>175 mm</strong> (180 mm in firmware).</p>
+
+<h3>3.2 Scissor Folding & Linkage Binding ($d_{\min} = 19\text{ mm}$)</h3>
+<p>The theoretical minimum height along the vertical axis is $|L_2 - L_3| = 19\text{ mm}$. In reality, physical MG995 servo horns, aluminum bracket flanges, and motor wiring collide well before this point. To prevent stripped servo gears and motor burnout, the system enforces a <strong>66 mm buffer</strong>, restricting the minimum stance height to <strong>85 mm</strong> (80 mm in firmware).</p>
+
+<h3>3.3 High-Current Servo Stalls & Voltage Brownout</h3>
+<p>Under aggressive maneuvering or mechanical jams, each MG995 servo can draw up to 2.5A, resulting in potential peak transient currents exceeding 15A across the 6 servos. If fed from the same rail as the microcontrollers, battery internal resistance causes bus voltage to sag below 4.5V, triggering an unexpected microcontroller brownout reset. The platform mitigates this through:</p>
+<ol>
+  <li>Split power regulation: A dedicated 6.0V 15A buck converter with a 4700µF low-ESR capacitor buffer for servos.</li>
+  <li>A debounced low-battery safety check: Battery voltage below 9.6V (3.2V/cell for 3S LiPo) must persist for $>200\text{ ms}$ before triggering a fault, preventing false trips from brief servo transients.</li>
+</ol>
+
+<h3>3.4 ATmega2560 Watchdog Bootloader Bug</h3>
+<p>The stock Arduino Mega bootloader contains a known bug: it does not clear <code>MCUSR</code> or disable the AVR hardware watchdog timer upon reset. When a watchdog timeout occurs, the MCU resets, but the watchdog remains active with a 15 ms timeout. The bootloader takes longer than 15 ms to run, causing the MCU to enter an infinite reset loop. Chintu protects against this by inserting an assembly hook in the <code>.init3</code> section (which executes before C runtime initialization) to immediately zero <code>MCUSR</code> and disable the watchdog.</p>
+
+<h3>3.5 Critical Tilt Cutoff Boundary</h3>
+<p>An inverted pendulum has a strictly bounded basin of attraction. If chassis tilt exceeds $\pm 45^\circ$ in pitch or $\pm 35^\circ$ in roll, the wheels can no longer generate sufficient horizontal acceleration to swing the center of mass back above the contact point. Driving the motors beyond this threshold causes violent wheel spin, chassis flipping, and mechanical damage. The safety supervisor instantly halts stepper pulses and tri-states motor drivers upon crossing these thresholds.</p>
+
+<!-- SECTION 4 -->
+<div class="page-break"></div>
+<h2>4. Critical "Cracks" & Broken Code Points in the Codebase</h2>
+
+<p>Our deep audit uncovered 11 severe bugs, breaking points, and discrepancies in the repository:</p>
+
+<h3>Crack 1: Fatal JavaScript ReferenceError in Web UI <span class="badge-critical">Critical</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/web-ui/js/api.js</code> (Line 79)</li>
+  <li><strong>Defect:</strong>
+    <pre><code>// api.js line 79
+State.addLog('NET', `Connected to supervisor via ${protocol}//${host}:${port}`);</code></pre>
+    The variable <code>protocol</code> is never declared or in scope (the script defines <code>wsProtocol</code> and <code>httpProtocol</code>).
+  </li>
+  <li><strong>Consequence:</strong> When the WebSocket connection establishes, the <code>ws.onopen</code> event handler throws an unhandled <code>ReferenceError: protocol is not defined</code>. This causes the function to abort before reaching <code>this.startPingLoop()</code> and <code>this.startCommandLoop()</code>. The UI appears connected, but keepalives and user drive commands are never sent.</li>
+</ul>
+
+<h3>Crack 2: Broken Systemd Service Module Path & Interpreter <span class="badge-critical">Critical</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/backend/scripts/chintu.service</code> (Lines 8–9)</li>
+  <li><strong>Defect:</strong>
+    <pre><code>WorkingDirectory=/home/pi/robot/backend
+ExecStart=/usr/bin/python3 -m backend.server</code></pre>
+  </li>
+  <li><strong>Consequence:</strong>
+    <ol>
+      <li>With <code>WorkingDirectory=/home/pi/robot/backend</code>, Python searches for a module named <code>backend</code> inside <code>backend/</code> and fails immediately with <code>ModuleNotFoundError: No module named 'backend'</code>.</li>
+      <li>The unit executes system Python <code>/usr/bin/python3</code> instead of the virtual environment Python (<code>/home/pi/robot/backend/venv/bin/python3</code>), where all dependencies (FastAPI, Pydantic, Uvicorn, etc.) are installed.</li>
+    </ol>
+  </li>
+</ul>
+
+<h3>Crack 3: Contradictory & Abandoned Guide in `README_RASPBERRY_PI.md` <span class="badge-critical">Critical</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>README_RASPBERRY_PI.md</code></li>
+  <li><strong>Defect:</strong> The entire root guide instructs the user to configure an **ESP32** microcontroller at 115,200 baud running <code>firmware/chintu_esp32.ino</code>, or direct GPIO control via <code>rpi_chintu.py</code>, using scripts <code>setup_rpi.sh</code> and <code>start_rpi.sh</code>.</li>
+  <li><strong>Consequence:</strong> None of these files exist in the repository. The production firmware is an Arduino Mega 2560 at 250,000 baud. The guide tells operators to execute <code>python3 server.py --auto-serial</code>, which crashes because <code>server.py</code> has no <code>--auto-serial</code> flag and aborts if <code>ROBOT_AUTH_TOKEN</code> is not defined in the environment.</li>
+</ul>
+
+<h3>Crack 4: Nominal Leg Height Discrepancy & Gain Scheduling Skew <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>Files:</strong> <code>robot/backend/config.py</code> vs. <code>robot/firmware/include/config.h</code></li>
+  <li><strong>Defect:</strong>
+    <ul>
+      <li>Supervisor (<code>config.py</code>): <code>LEG_HEIGHT_NOMINAL_MM = 135.0</code></li>
+      <li>Firmware (<code>config.h</code>): <code>LEG_HEIGHT_NOMINAL_MM = 118.0f</code></li>
+    </ul>
+  </li>
+  <li><strong>Consequence:</strong> Firmware gain scheduling scales pitch gains by $\sqrt{h / h_{\text{nominal}}}$. When the supervisor commands the nominal 135 mm height, the firmware evaluates $\sqrt{135 / 118} \approx 1.07$, artificially increasing balance stiffness by 7–11% above designed baseline values. Height boundaries also conflict: supervisor restricts to [85, 175] mm, while firmware allows [80, 180] mm.</li>
+</ul>
+
+<h3>Crack 5: Missing Hardware Pin in Primary Manual <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/README.md</code> (Section 2.1 Table)</li>
+  <li><strong>Defect:</strong> The pinout table completely omits **SERVO 5 (Right Hip Pitch, Pin 12)**. It lists SERVO 1, 2, 3, 4, and 6, leaving a confusing note on SERVO 6: <code>*(NEEDS PHYSICAL WIRING CHECK: Pin 13 is onboard LED)*</code>.</li>
+</ul>
+
+<h3>Crack 6: Telemetry Struct Length Inconsistency <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/protocol.md</code> (Section 2.3.2)</li>
+  <li><strong>Defect:</strong> The document lists <code>uint8_t reserved[3]</code> for <code>TelemetryPayload</code>, which sums to 35 bytes, despite heading the section as <code>Length: 36 Bytes</code>. The actual firmware (<code>protocol.h</code>) and Python parser (<code>protocol.py</code>) implement <code>reserved[4]</code> (36 bytes). Any third-party client built from the markdown specification will fail CRC checks.</li>
+</ul>
+
+<h3>Crack 7: Incomplete Root `requirements.txt` <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>requirements.txt</code> vs. <code>robot/backend/requirements.txt</code></li>
+  <li><strong>Defect:</strong> The root file contains only <code>websockets</code>, <code>aiohttp</code>, and <code>pyserial</code>. Installing from the root omits FastAPI, Pydantic, Uvicorn, and Pytest.</li>
+</ul>
+
+<h3>Crack 8: Deprecated Hotspot Configuration in `setup_hotspot.sh` <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/backend/scripts/setup_hotspot.sh</code> (Lines 34–38)</li>
+  <li><strong>Defect:</strong> The script attempts to configure static IP by appending to <code>/etc/dhcpcd.conf</code> and restarting <code>dhcpcd</code>. Modern Raspberry Pi OS (Bookworm and later) uses <code>NetworkManager</code> (<code>nmcli</code>) and lacks <code>dhcpcd</code> entirely, breaking Wi-Fi setup on new systems.</li>
+</ul>
+
+<h3>Crack 9: Missing SAN in SSL Certificate Generation <span class="badge-warning">Warning</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/backend/scripts/generate_cert.py</code> (Lines 37–42)</li>
+  <li><strong>Defect:</strong> The OpenSSL configuration adds SANs for <code>192.168.4.1</code>, <code>127.0.0.1</code>, <code>localhost</code>, and <code>chintu.local</code>. However, the system's mDNS domain throughout the repo is **<code>chintu.robot</code>**. Browsers connecting to <code>https://chintu.robot:8000</code> flag security certificate mismatch warnings.</li>
+</ul>
+
+<h3>Crack 10: Firmware Comms Stream Parser Edge Case <span class="badge-info">Info</span></h3>
+<ul>
+  <li><strong>File:</strong> <code>robot/firmware/src/comms.cpp</code> (Lines 92–98)</li>
+  <li><strong>Defect:</strong> In <code>STATE_WAIT_SYNC1</code>, if another <code>0xAA</code> byte is received (e.g. sequence <code>0xAA 0xAA 0x55</code>), the state resets to <code>STATE_WAIT_SYNC0</code>, discarding the frame. In contrast, <code>backend/protocol.py</code> correctly remains in <code>STATE_WAIT_SYNC1</code>.</li>
+</ul>
+
+<h3>Crack 11: Architectural Gap with Research Document <span class="badge-critical">Critical</span></h3>
+<ul>
+  <li><strong>Scope:</strong> Entire codebase vs. <code>Wheel_Leg_Robot_Research_Document.docx</code></li>
+  <li><strong>Defect:</strong> Zero MuJoCo MJCF files (<code>robot.xml</code>), CAD mesh exports, PyTorch PPO scripts, or ROS 2 packages exist in the repository. The advanced simulation-to-real and RL pipelines described in the research paper remain entirely unimplemented.</li>
+</ul>
+
+<!-- SECTION 5 -->
+<div class="page-break"></div>
+<h2>5. Actionable Engineering Recommendations & Solutions</h2>
+
+<h3>5.1 Immediate Source Code Fixes</h3>
+
+<h4>1. Fix Web-UI WebSocket Link (`robot/web-ui/js/api.js`)</h4>
+<p>Update line 79 to use the correct protocol variable:</p>
+<pre><code>// In robot/web-ui/js/api.js line 79:
+// OLD:
+State.addLog('NET', `Connected to supervisor via ${protocol}//${host}:${port}`);
+
+// NEW:
+State.addLog('NET', `Connected to supervisor via ${wsProtocol}//${host}:${port}`);</code></pre>
+
+<h4>2. Fix Systemd Service Unit (`robot/backend/scripts/chintu.service`)</h4>
+<p>Correct the working directory and point to the virtual environment binary:</p>
+<pre><code>[Unit]
+Description=Chintu Wheel-Leg Robot Supervisor Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/chintu/robot
+ExecStart=/home/pi/chintu/robot/backend/venv/bin/python3 -m backend.server
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/chintu.env
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<h4>3. Synchronize Nominal Leg Height in Firmware (`robot/firmware/include/config.h`)</h4>
+<pre><code>// In robot/firmware/include/config.h lines 70-74:
+#define LEG_HEIGHT_MIN_MM      85.0f
+#define LEG_HEIGHT_MAX_MM      175.0f
+#define LEG_HEIGHT_NOMINAL_MM  135.0f</code></pre>
+
+<h4>4. Add <code>chintu.robot</code> to Certificate Generator (`robot/backend/scripts/generate_cert.py`)</h4>
+<pre><code>// In robot/backend/scripts/generate_cert.py under [alt_names]:
+[alt_names]
+IP.1 = 192.168.4.1
+IP.2 = 127.0.0.1
+DNS.1 = localhost
+DNS.2 = chintu.local
+DNS.3 = chintu.robot</code></pre>
+
+<h4>5. Enhance Firmware Stream Parser Resilience (`robot/firmware/src/comms.cpp`)</h4>
+<pre><code>// In robot/firmware/src/comms.cpp lines 92-98:
+case STATE_WAIT_SYNC1:
+    if (byte == PROTOCOL_SYNC_1) {
+        rx_state_ = STATE_WAIT_LEN;
+    } else if (byte == PROTOCOL_SYNC_0) {
+        rx_state_ = STATE_WAIT_SYNC1; // Maintain state on repeated sync bytes
+    } else {
+        rx_state_ = STATE_WAIT_SYNC0;
+    }
+    break;</code></pre>
+
+<h3>5.2 Documentation Synchronization Checklist</h3>
+<ul>
+  <li><strong>Rewrite <code>README_RASPBERRY_PI.md</code>:</strong> Eliminate all ESP32 references. Document the Arduino Mega 2560 pinouts, 250,000 baud serial connection, and <code>/etc/chintu.env</code> token provisioning.</li>
+  <li><strong>Update <code>robot/README.md</code> Pinout:</strong> Add SERVO 5 (Pin 12 - Right Hip Pitch) and clarify that SERVO 6 uses Pin 38 to preserve Pin 13 for the LED.</li>
+  <li><strong>Align <code>protocol.md</code>:</strong> Update Section 2.3.2 to specify <code>uint8_t reserved[4];</code> to reflect the actual 36-byte payload.</li>
+  <li><strong>Consolidate Dependencies:</strong> Copy all requirements from <code>robot/backend/requirements.txt</code> into root <code>requirements.txt</code>.</li>
+</ul>
+
+<h3>5.3 Roadmap to Implement the Research Pipeline (Phases 1–10)</h3>
+<ol>
+  <li><strong>Create <code>robot/simulation/</code> Directory:</strong>
+    <ul>
+      <li>Export CAD models from Fusion 360 as STL/OBJ files.</li>
+      <li>Construct <code>robot/simulation/robot.xml</code> (MJCF format) defining kinematics, mass, inertias, contacts, and damping.</li>
+    </ul>
+  </li>
+  <li><strong>Build MuJoCo Simulation Testbed:</strong>
+    <ul>
+      <li>Create <code>robot/tools/mujoco_sim.py</code> using the official Python <code>mujoco</code> package.</li>
+      <li>Replicate the firmware's 200 Hz discrete balance loop to tune PID and LQR gains in simulation prior to hardware deployment.</li>
+    </ul>
+  </li>
+  <li><strong>Derive LQR State-Space Controller:</strong>
+    <ul>
+      <li>Linearize the non-linear inverted pendulum dynamics around vertical equilibrium ($\theta = 0$).</li>
+      <li>Use SciPy (<code>scipy.linalg.solve_continuous_are</code>) to compute optimal state feedback gains $\mathbf{K}$ across the operating height envelope ($85\text{ mm} - 175\text{ mm}$).</li>
+    </ul>
+  </li>
+  <li><strong>Implement Reinforcement Learning Environment:</strong>
+    <ul>
+      <li>Wrap the MuJoCo model inside a standard <code>gymnasium.Env</code> interface.</li>
+      <li>Train PPO policies in PyTorch for terrain traversal and disturbance rejection before sim-to-real transfer.</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="alert alert-success">
+  <strong>Audit Conclusion:</strong> The Chintu robot core control and safety architecture is solid. Applying these fixes resolves all active failure modes, harmonizes the documentation, and lays out a clear path toward the full simulation-to-real pipeline.
+</div>
+
+</body>
+</html>
+

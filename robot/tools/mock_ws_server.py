@@ -29,15 +29,13 @@ WEB_UI_DIR = REPO_DIR / "web-ui"
 
 app = FastAPI(title="Chintu Biped Mock Supervisor", version="2.1.0")
 
-if WEB_UI_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(WEB_UI_DIR)), name="static")
+@app.post("/api/ws-ticket")
+async def issue_mock_ticket():
+    return {"ticket": "mock-sim-ticket", "expires_in": 3600}
 
-@app.get("/")
-async def root():
-    index_path = WEB_UI_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(str(index_path))
-    return JSONResponse({"status": "Web-UI directory not found", "path": str(WEB_UI_DIR)})
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "mode": "simulation"}
 
 # Simulation State Store
 class SimulationState:
@@ -261,12 +259,9 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query("")):
-    # Token authentication check
-    expected_token = os.getenv("ROBOT_AUTH_TOKEN", "CHANGE_ME")
-    if not token or not secrets.compare_digest(token, expected_token):
-        await websocket.close(code=1008, reason="Unauthorized token")
-        return
+async def websocket_endpoint(websocket: WebSocket, ticket: str = Query(""), token: str = Query("")):
+    # In mock simulation mode, accept connection directly
+    pass
 
     await manager.connect(websocket)
     try:
@@ -423,5 +418,11 @@ async def startup_event():
     print("   POST /api/simulate/clear")
     print("=======================================================\n")
 
+# Mount Static Web-UI at root
+if WEB_UI_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(WEB_UI_DIR), html=True), name="static")
+
 if __name__ == "__main__":
-    uvicorn.run("mock_ws_server:app", host="0.0.0.0", port=8765, reload=False)
+    port = int(os.getenv("ROBOT_PORT", "8000"))
+    print(f"Starting Chintu Mock Supervisor on http://localhost:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
