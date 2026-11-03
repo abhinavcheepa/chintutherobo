@@ -1,0 +1,13 @@
+{
+  "name": "chintu-biped-robot",
+  "version": "1.0.0",
+  "description": "Chintu Biped Teleoperation & Field HMI Simulator",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "start": "node dev-server.js",
+    "dev:python": "python robot/tools/mock_ws_server.py"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
