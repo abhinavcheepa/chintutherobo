@@ -20,46 +20,100 @@ This document is the authoritative step-by-step field runbook for deploying, cal
 ## 1. System Architecture & Wiring Summary
 
 ```
-                      [ 3S LiPo Battery: 11.1V - 12.6V ]
-                                      │
-                         [ Main Fuse 30A + E-Stop ]
-                                      │
-     ┌────────────────────────────────┼──────────────────────────────────┐
-     ▼                                ▼                                  ▼
-[ 6.0V 15A BEC ]            [ 5.1V 4A Buck ]                  [ 12V Motor Rail ]
-  (Servo Power)               (Raspberry Pi)                   (A4988 / TMC2209)
-     │                                │                                  │
-     ▼                                ▼                                  ▼
-6x MG995 Servos              Raspberry Pi 4 / 5                2x NEMA17 Steppers
-                                      │
-                              (USB Serial Cable)
-                                      ▼
-                             Arduino Mega 2560
-                                      │
-                               MPU-6050 (I2C)
+                                [ 3S LiPo Battery: 11.1V - 12.6V ]
+                                                │
+                                   [ Main Fuse 30A + E-Stop ]
+                                                │
+       ┌────────────────────────────────────────┼────────────────────────────────────────┐
+       ▼                                        ▼                                        ▼
+[ XL4016 E1 Buck Converter ]           [ 5.1V 4A Buck Converter ]                [ 12V Motor Rail ]
+  (Step-down to 6.0V 8A-10A)                (Raspberry Pi Power)                 (VMOT + 100µF Caps)
+       │                                        │                                        │
+       ▼ (Screw Terminal V+)                    ▼                                        ▼
+[ PCA9685 Servo Controller ]             Raspberry Pi 4 / 5                    [ Dual A4988 Drivers ]
+  (16-Ch 12-Bit PWM I2C)                        │                               (Step / Dir / Enable)
+       │                                (USB Serial Cable)                               │
+       ├─────────────────────┐                  ▼                                        │
+       ▼                     ▼          Arduino Mega 2560 ◄──────────────────────────────┘
+ 3x MG995 Servos      3x MG996R Servos          │
+ (Roll / Leg Joints)  (High-Torque Pitch)       ├─────────────────► PCA9685 (SDA:20, SCL:21)
+                                                └─────────────────► MPU-6050 (SDA:20, SCL:21)
+                                                                    2x NEMA17 Stepper Motors ◄───┘
 ```
 
 > [!CAUTION]
-> **Star-Grounding Mandate:** All GND lines (Battery -, BEC -, Pi GND, Mega GND, Driver GND) **MUST** meet at a single central star terminal. High servo currents (~12-15A transient) will brown out the microcontroller if ground loops exist.
+> **Star-Grounding Mandate:** All GND lines (Battery -, XL4016 E1 OUT-, Pi GND, Mega GND, PCA9685 GND, A4988 GND) **MUST** meet at a single central star terminal block. High transient currents (~10-12A during simultaneous servo & stepper acceleration) will brown out the microcontroller if ground loops exist.
+
+---
+
+### Hardware Modules & Interface Specifications
+
+#### 1. XL4016 E1 High-Power DC-DC Buck Converter
+- **Input:** 3S LiPo ($11.1\text{V} - 12.6\text{V}$) via Main 30A Fuse and Safety Switch.
+- **Output:** Tuned via onboard multi-turn precision brass potentiometer to **$6.00\text{ V DC}$**.
+- **Current Rating:** Up to $8\text{A}$ continuous ($10\text{A}$ peak with heatsink cooling).
+- **Connection:** Output `OUT+` connects directly to the high-current `V+` screw terminal of the **PCA9685**, and `OUT-` connects to the central star ground bus.
+- **Multimeter Pre-Flight Check:** *Always verify output voltage with a digital multimeter before plugging in PCA9685 or servos! Over-voltage (> 7.2V) will burn MG995/MG996 servos.*
+
+#### 2. PCA9685 16-Channel 12-Bit PWM I2C Servo Controller
+- **Power Terminals:**
+  - `V+` (Green Screw Terminal): Receives **6.0V** high-current rail from XL4016 E1 buck converter.
+  - `GND` (Green Screw Terminal): Receives ground from XL4016 E1 and Central Star Ground.
+- **Logic Header (To Arduino Mega 2560):**
+  - `VCC` $\rightarrow$ Arduino Mega **5V** logic pin.
+  - `GND` $\rightarrow$ Arduino Mega **GND**.
+  - `SDA` $\rightarrow$ Arduino Mega **Pin 20** (I2C Data, shared with MPU-6050).
+  - `SCL` $\rightarrow$ Arduino Mega **Pin 21** (I2C Clock, shared with MPU-6050).
+  - `OE` (Output Enable) $\rightarrow$ Tied to **GND** (Always enabled active-low).
+- **I2C Address:** Default `0x40` (all address solder jumpers open).
+
+#### 3. Servo Allocation: 3x MG995 + 3x MG996R (Channels 0 – 5)
+High-torque **MG996R** metal gear servos ($11.0\text{ kg}\cdot\text{cm}$) are assigned to heavy load-bearing pitch/thigh axes, while **MG995** servos ($10.0\text{ kg}\cdot\text{cm}$) are assigned to roll balance and knee joints:
+
+| PCA9685 Channel | Joint / Axis | Servo Model | Gear Type | Operating Voltage | Function |
+|---|---|---|---|---|---|
+| **Channel 0** | **Left Hip Roll** | **MG995** | Metal | 6.0V (XL4016) | Lateral tilt / stance trim |
+| **Channel 1** | **Left Hip Pitch (Thigh $L_2$)** | **MG996R** | Metal | 6.0V (XL4016) | High-torque forward/back leg swing |
+| **Channel 2** | **Left Knee (Shank $L_3$)** | **MG996R** | Metal | 6.0V (XL4016) | Dynamic leg height / knee flexion |
+| **Channel 3** | **Right Hip Roll** | **MG995** | Metal | 6.0V (XL4016) | Lateral tilt / stance trim |
+| **Channel 4** | **Right Hip Pitch (Thigh $L_2$)** | **MG996R** | Metal | 6.0V (XL4016) | High-torque forward/back leg swing |
+| **Channel 5** | **Right Knee (Shank $L_3$)** | **MG995** | Metal | 6.0V (XL4016) | Dynamic leg height / knee flexion |
+
+#### 4. Dual A4988 Stepper Drivers & Arduino Mega Interface
+Driving 2x NEMA 17 Bipolar Steppers ($1.8^\circ/\text{step}$, $1.2\text{A}$–$1.5\text{A}$ rating):
+- **Motor Voltage Rail:** `VMOT` $\rightarrow$ $12\text{V}$ LiPo bus through fuse.
+- **Decoupling Protection:** Place a **$100\,\mu\text{F}$ 25V+ electrolytic capacitor** directly across `VMOT` and `GND` at each A4988 pin header to protect FETs from inductive inductive back-EMF spikes.
+- **Logic Power:** `VDD` $\rightarrow$ Arduino Mega **5V**, `GND` $\rightarrow$ Mega **GND**.
+- **Control Interface (Arduino Mega 2560):**
+  - **Left Driver:** `STEP` $\rightarrow$ **Pin 5** (Timer3 CTC), `DIR` $\rightarrow$ **Pin 6**.
+  - **Right Driver:** `STEP` $\rightarrow$ **Pin 7** (Timer4 CTC), `DIR` $\rightarrow$ **Pin 8**.
+  - **Global Enable:** `ENABLE` $\rightarrow$ **Pin 4** (Active LOW, pulled LOW to energize coils).
+  - **Sleep / Reset:** Connect `RESET` to `SLEEP` together on each A4988 driver board.
+- **Microstepping Jumpers (1/16 Microstepping):**
+  - Pull `MS1`, `MS2`, `MS3` all **HIGH** (tie to $5\text{V}$ rail) $\rightarrow$ Sets driver to **sixteenth-step mode** ($3200\text{ steps/revolution}$, matching firmware `STEPS_PER_REV 3200.0f`).
+- **A4988 Current Limit ($V_{\text{ref}}$) Calibration:**
+  $$\text{Target } I_{\text{Trip}} = 1.0\text{A} - 1.2\text{A}$$
+  $$V_{\text{ref}} = I_{\text{Trip}} \times 8 \times R_{\text{sense}}$$
+  *(For standard boards with $R_{\text{sense}} = 0.10\,\Omega$ [marked R100], adjust potentiometer using ceramic screwdriver until multimeter reads **$0.80\text{V} - 0.88\text{V}$** between trimpot wiper and GND).*
+
+---
 
 ### Canonical Arduino Mega 2560 Pin Allocation
 | Subsystem | Signal Name | Mega 2560 Pin | Direction / Mode | Description |
 |---|---|---|---|---|
-| **MPU-6050 IMU** | SDA | **Pin 20** | Bidirectional (I2C) | 400 kHz Fast-Mode |
-| **MPU-6050 IMU** | SCL | **Pin 21** | Output (I2C) | I2C Clock |
-| **Left Stepper** | STEP | **Pin 5** | Output (Timer3 CTC) | Fast pulse generation via OCR3A |
-| **Left Stepper** | DIR | **Pin 6** | Digital Output | Left wheel direction |
-| **Right Stepper** | STEP | **Pin 7** | Output (Timer4 CTC) | Fast pulse generation via OCR4A |
-| **Right Stepper** | DIR | **Pin 8** | Digital Output | Right wheel direction |
-| **Steppers Enable**| EN | **Pin 4** | Digital Output | Active LOW (LOW=Torque, HIGH=Coast) |
-| **Left Hip Roll** | SERVO 1 | **Pin 44** | Timer5 PWM | Lateral roll adjustment |
-| **Left Hip Pitch**| SERVO 2 | **Pin 45** | Timer5 PWM | Thigh flexion joint |
-| **Left Knee** | SERVO 3 | **Pin 46** | Timer5 PWM | Knee bend joint |
-| **Right Hip Roll**| SERVO 4 | **Pin 11** | Timer5 PWM | Lateral roll adjustment |
-| **Right Hip Pitch**| SERVO 5 | **Pin 12** | Timer5 PWM | Thigh flexion joint |
-| **Right Knee** | SERVO 6 | **Pin 38** | Digital PWM | Knee bend joint |
+| **MPU-6050 IMU** | SDA | **Pin 20** | Bidirectional (I2C) | 400 kHz Fast-Mode (Address `0x68`) |
+| **MPU-6050 IMU** | SCL | **Pin 21** | Output (I2C) | I2C Clock Line |
+| **PCA9685 Servos** | SDA | **Pin 20** | Bidirectional (I2C) | 400 kHz Fast-Mode (Address `0x40`) |
+| **PCA9685 Servos** | SCL | **Pin 21** | Output (I2C) | Shared Hardware I2C Clock |
+| **Left A4988 Stepper** | STEP | **Pin 5** | Output (Timer3 CTC) | Fast pulse generation via OCR3A |
+| **Left A4988 Stepper** | DIR | **Pin 6** | Digital Output | Left wheel direction |
+| **Right A4988 Stepper**| STEP | **Pin 7** | Output (Timer4 CTC) | Fast pulse generation via OCR4A |
+| **Right A4988 Stepper**| DIR | **Pin 8** | Digital Output | Right wheel direction |
+| **A4988 Drivers Enable**| EN | **Pin 4** | Digital Output | Active LOW (LOW=Torque, HIGH=Coast) |
 | **Battery Sense** | V_BATT | **Pin A0** | Analog In (ADC) | Calibrated voltage divider ($4.2\times$) |
 | **Hardware E-Stop**| ESTOP | **Pin 2** | Input (Pull-up) | Pull to GND trips immediate ESTOP |
+| **Status Indicator**| LED | **Pin 13** | Output | Built-in Diagnostic Heartbeat LED |
+*(Note: If operating without PCA9685, Timer5 direct pins 44, 45, 46, 11, 12, 38 remain compatible as direct servo outputs).*
 
 ---
 
@@ -202,19 +256,26 @@ sudo systemctl status chintu.service
    └─────────────────────┘
 ```
 
-### 1. Servo Neutral Calibration (Calibrate Tab)
+### 1. Power & Buck Converter Multimeter Verification
+1. Main battery connect karein lekin servos ko abhi PCA9685 se unplug rakhein.
+2. Multimeter probe ko **XL4016 E1 OUT+ aur OUT-** par lagayein.
+3. Potentiometer rotate karke **exact 6.00V DC** set karein.
+4. Verify karein ki A4988 driver modules par $V_{\text{ref}}$ tuned hai ($0.80\text{V} - 0.88\text{V}$) aur heatsinks theek se glued hain.
+5. Ab power off karke sabhi 3x MG995 aur 3x MG996R servos ko PCA9685 ke Channels 0-5 par securely plug karein.
+
+### 2. Servo Neutral Calibration (Calibrate Tab)
 1. Dashboard par **Calibrate** tab par click karein.
 2. Sabhi 6 servos ke horn 90-degree zero-position par aligned hone chahiye:
    - Thigh joints ($L_2$) and Shank joints ($L_3$) standard symmetric stance me set karein.
    - Agar koi joint tedha hai, to slider se microsecond trim adjust karein aur **Save to EEPROM** click karein.
 
-### 2. Stepper Rotation Direction Check
+### 3. Stepper Rotation Direction Check (A4988)
 1. Dashboard me robot ko arm karein (stand par rehte hue).
 2. Joystick ko aage push karein:
    - **Dono wheels aage (forward) rotate hone chahiye.**
-   - Agar koi wheel reverse ghoom raha hai, to stepper motor cable ko ulta karein ya firmware me `invert_l_` / `invert_r_` toggle karein.
+   - Agar koi wheel reverse ghoom raha hai, to power off karke stepper motor 4-pin plug ko 180° flip karein ya firmware me `invert_l_` / `invert_r_` toggle karein.
 
-### 3. Clear Gate 1 (Bench Stand)
+### 4. Clear Gate 1 (Bench Stand)
 1. Dashboard ke **Drive** tab par scroll down karke Bench Checklist me **Gate 1 (Bench Stand Test)** checkbox ko tick karein.
 
 ---
@@ -277,6 +338,7 @@ Agar robot balance kho de ya obstacle samne aa jaye:
 | **`CANNOT ARM: STALE TELEMETRY`** | WebSocket connection packet age > 300ms | Wi-Fi signal check karein; verify Pi serial connection to Mega (`/dev/ttyACM0`). |
 | **`TILT FAULT` on arming** | Robot was not upright during 2s calibration | Robot ko haath se bilkul sidha pakdein ($<5^\circ$ tilt) aur dobara slide to arm karein. |
 | **`SERIAL LINK DOWN`** | Mega disconnected or wrong port | Check USB cable between Mega and Pi. Verify `ROBOT_SERIAL_PORT` in `/etc/chintu.env`. |
-| **Servos vibrating or resetting Pi** | High current draw / brownout | Common star-ground wire check karein; Dedicated 6V 15A BEC use karein. |
+| **Servos vibrating or resetting Pi / Mega** | High current draw / brownout | Common star-ground wire check karein; XL4016 E1 buck converter output check karein (must be 6.0V under load, not dropping); ensure PCA9685 V+ screw terminal is firmly tightened. |
+| **Steppers vibrating / missing steps** | A4988 $V_{\text{ref}}$ incorrect or microstepping pins floating | Verify MS1, MS2, MS3 are tied HIGH (5V) for 1/16 microstepping; tune A4988 trimpot to $0.80\text{V} - 0.88\text{V}$; install heatsinks. |
+| **PCA9685 Servos Not Responding** | I2C communication fault | Check SDA (Pin 20) and SCL (Pin 21) connections between Mega and PCA9685; verify OE pin is grounded; confirm I2C address is `0x40`. |
 | **Robot runs away in one direction** | Pitch trim or IMU orientation offset | Dashboard Tune tab me jakar pitch trim calibrate karein. |
-
