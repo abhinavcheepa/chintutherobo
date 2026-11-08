@@ -22,6 +22,11 @@
 
 static const unsigned long CONTROL_PERIOD_US = 5000UL; // 200 Hz target
 static const unsigned long TELEMETRY_PERIOD_MS = 100UL;
+// MUST remain false until IMU axis, motor signs, current limit, and safe test rig are verified.
+static const bool PHYSICAL_BALANCE_OUTPUT_VALIDATED = false;
+// Placeholder gains are intentionally zero; tune only with wheels lifted and rig supported.
+static const float BALANCE_KP = 0.0f, BALANCE_KI = 0.0f, BALANCE_KD = 0.0f;
+static const float BALANCE_MAX_STEP_RATE = 150.0f;
 
 ImuManager imu;
 ServoManager servos;
@@ -94,11 +99,20 @@ void onCommand(const String& cmd, const String& requestId) {
       comm.sendStatus(requestId, stateName(robotState), "STANDING_POSE_NOT_CONFIGURED");
     }
   } else if (cmd == "BALANCE") {
-    // Intentionally disabled: NEMA17 wheel/joint assignment and control dynamics
-    // have not been confirmed.
-    balance.disable();
-    robotState = STATE_BALANCE_DISABLED;
-    comm.sendAck(requestId, false, "BALANCE_DISABLED_UNCONFIRMED_MECHANICS");
+    // Keep physical balance output disabled until the actual rig has been validated.
+    if (!PHYSICAL_BALANCE_OUTPUT_VALIDATED || !hardwareReady || safety.hasFault() ||
+        !imu.latest().valid) {
+      balance.disable();
+      steppers.clearBalanceSpeeds();
+      robotState = STATE_BALANCE_DISABLED;
+      comm.sendAck(requestId, false, "BALANCE_OUTPUT_NOT_VALIDATED");
+      return;
+    }
+    if (balance.armForValidatedRig()) {
+      comm.sendAck(requestId, true, "BALANCE_ARMED_TEST_RIG_ONLY");
+    } else {
+      comm.sendAck(requestId, false, "BALANCE_CONTROLLER_NOT_CONFIGURED");
+    }
   } else {
     comm.sendAck(requestId, false, "UNKNOWN_COMMAND");
   }
@@ -113,6 +127,8 @@ void setup() {
   safety.begin();
   servos.begin();
   steppers.begin();
+  steppers.configureLimits(BALANCE_MAX_STEP_RATE, 100.0f, 200);
+  balance.configure(BALANCE_KP, BALANCE_KI, BALANCE_KD, BALANCE_MAX_STEP_RATE);
   imu.begin();
 
   const bool imuOk = imu.isConnected();
@@ -140,9 +156,13 @@ void loop() {
     ImuReading reading;
     if (imu.read(reading)) {
       safety.updateImu(reading, millis());
-      // The controller is not enabled until mechanical allocation is confirmed.
-      // This update only computes a disabled preview value for diagnostics.
-      balance.update(reading, dt);
+      const float wheelCorrection = balance.update(reading, dt);
+      if (balance.isEnabled() && PHYSICAL_BALANCE_OUTPUT_VALIDATED && !safety.hasFault()) {
+        // Opposite signs are a PLACEHOLDER mapping; verify each wheel's physical direction first.
+        steppers.setBalanceSpeeds(wheelCorrection, -wheelCorrection);
+      } else {
+        steppers.clearBalanceSpeeds();
+      }
     } else {
       safety.raiseFault(FAULT_IMU_READ);
     }
@@ -153,6 +173,8 @@ void loop() {
 
     if (safety.hasFault()) {
       balance.disable();
+      steppers.clearBalanceSpeeds();
+      steppers.disableDrivers();
       robotState = STATE_FAULT;
     }
   }

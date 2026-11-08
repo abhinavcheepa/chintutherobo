@@ -41,6 +41,28 @@ class StepperManager {
     return true;
   }
 
+  // Continuous wheel-speed interface for balancing. Speed is in STEP pulses/second.
+  // This only generates pulses; direction/signs must be verified with wheels lifted.
+  bool setBalanceSpeeds(float leftStepsPerSecond, float rightStepsPerSecond) {
+    if (!initialized_ || !limitsConfigured_ || !isfinite(leftStepsPerSecond) ||
+        !isfinite(rightStepsPerSecond)) return false;
+    leftStepsPerSecond = constrain(leftStepsPerSecond, -maxSpeed_, maxSpeed_);
+    rightStepsPerSecond = constrain(rightStepsPerSecond, -maxSpeed_, maxSpeed_);
+    digitalWrite(ENABLE1, LOW);
+    digitalWrite(ENABLE2, LOW);
+    motor1_->setSpeed(leftStepsPerSecond);
+    motor2_->setSpeed(rightStepsPerSecond);
+    balanceSpeedMode_ = true;
+    return true;
+  }
+
+  void clearBalanceSpeeds() {
+    if (!initialized_) return;
+    motor1_->setSpeed(0);
+    motor2_->setSpeed(0);
+    balanceSpeedMode_ = false;
+  }
+
   bool moveRelative(uint8_t motor, long steps) {
     if (!initialized_ || !limitsConfigured_ || abs(steps) > maxAbsSteps_) return false;
     AccelStepper* m = (motor == 0) ? motor1_ : (motor == 1) ? motor2_ : nullptr;
@@ -52,14 +74,20 @@ class StepperManager {
 
   void update() {
     if (!initialized_) return;
-    motor1_->run();
-    motor2_->run();
+    if (balanceSpeedMode_) {
+      motor1_->runSpeed();
+      motor2_->runSpeed();
+    } else {
+      motor1_->run();
+      motor2_->run();
+    }
   }
 
   void stop() {
     if (!initialized_) return;
     motor1_->stop();
     motor2_->stop();
+    clearBalanceSpeeds();
   }
 
   void disableDrivers() {
@@ -70,7 +98,7 @@ class StepperManager {
  private:
   AccelStepper* motor1_ = nullptr;
   AccelStepper* motor2_ = nullptr;
-  bool initialized_ = false, limitsConfigured_ = false;
+  bool initialized_ = false, limitsConfigured_ = false, balanceSpeedMode_ = false;
   float maxSpeed_ = 200.0, acceleration_ = 100.0;
   long maxAbsSteps_ = 200;
 };
