@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chintu Biped Robot — Codebase Conflict Audit & Deployment Guide</title>
+<style>
+  @page {
+    size: A4;
+    margin: 14mm 12mm 14mm 12mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  *, *:before, *:after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    line-height: 1.5;
+    font-size: 10pt;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cover {
+    page-break-after: always;
+    padding: 30px 15px 15px 15px;
+    border-bottom: 3px solid #0284c7;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    background: #0369a1;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 8.5pt;
+    padding: 3px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1.cover-title {
+    font-size: 24pt;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.15;
+    margin: 0 0 8px 0;
+  }
+
+  .cover-subtitle {
+    font-size: 12pt;
+    color: #475569;
+    font-weight: 500;
+    margin: 0 0 20px 0;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 14px;
+    margin-top: 20px;
+    font-size: 9pt;
+  }
+
+  .meta-item strong {
+    color: #0f172a;
+    display: inline-block;
+    width: 130px;
+  }
+
+  h2 {
+    font-size: 13.5pt;
+    font-weight: 700;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0369a1;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 8px 0;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    padding: 5px 8px;
+    text-align: left;
+    border: 1px solid #cbd5e1;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  code {
+    font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+    font-size: 8.5pt;
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #0f172a;
+  }
+
+  pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+    font-size: 8pt;
+    line-height: 1.35;
+    overflow-x: auto;
+    margin: 8px 0 12px 0;
+    page-break-inside: avoid;
+  }
+
+  .tag-danger {
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  .tag-warning {
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  .tag-success {
+    background-color: #10b981;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  .alert {
+    padding: 10px 14px;
+    border-radius: 5px;
+    margin: 10px 0;
+    border-left: 4px solid;
+    page-break-inside: avoid;
+    font-size: 9pt;
+  }
+
+  .alert-danger {
+    background-color: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+  }
+
+  .alert-warning {
+    background-color: #fffbeb;
+    border-color: #f59e0b;
+    color: #92400e;
+  }
+
+  .alert-info {
+    background-color: #f0f9ff;
+    border-color: #0284c7;
+    color: #075985;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="badge-tag">Robotics Engineering Audit &amp; Technical Report</div>
+  <h1 class="cover-title">CHINTU TWO-WHEELED BIPED ROBOT</h1>
+  <div class="cover-subtitle">Complete Repository Conflict Audit, Pin Collision Matrix &amp; Field Deployment Guide</div>
+
+  <div class="alert alert-danger">
+    <strong>CRITICAL PHYSICAL WARNING:</strong> The two repository branches (<code>main</code> and <code>feature/chintu-defence-bot</code>) share hardware naming but feature completely clashing pinouts and incompatible electrical architectures. Flashing one branch's code on the other's wiring will cause immediate E-Stop loops, motor short circuits, or joint failure.
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item"><strong>Primary Repository:</strong> chintutherobo (branch: main)</div>
+    <div class="meta-item"><strong>Secondary Branch:</strong> feature/chintu-defence-bot</div>
+    <div class="meta-item"><strong>Target Microcontroller:</strong> Arduino Mega 2560 (ATmega2560)</div>
+    <div class="meta-item"><strong>Target Host Supervisor:</strong> Raspberry Pi 4 / 5 (Linux)</div>
+    <div class="meta-item"><strong>Report Date:</strong> November 9, 2026</div>
+    <div class="meta-item"><strong>Audit Status:</strong> Verified &amp; Resolved</div>
+  </div>
+</div>
+
+<!-- SECTION 1: ARCHITECTURAL OVERVIEW -->
+<h2>1. High-Level Architecture Comparison</h2>
+<p>Both repositories are written for a two-wheeled bipedal robot with 3-link kinematic legs and microstepped wheel drives. However, they are fundamentally distinct engineering implementations:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 20%;">Dimension</th>
+      <th style="width: 40%;">Main Production Stack (<code>chintutherobo</code>)</th>
+      <th style="width: 40%;">Feature Scaffold (<code>chintu-defence-bot</code>)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>System Maturity</strong></td>
+      <td><span class="tag-success">PRODUCTION READY</span> Full-stack closed-loop balancing platform.</td>
+      <td><span class="tag-warning">STARTER SCAFFOLD</span> Bench unit test rig only.</td>
+    </tr>
+    <tr>
+      <td><strong>Firmware Build Core</strong></td>
+      <td>PlatformIO C++ (<code>robot/firmware/</code>) with <code>-O3</code> optimizations.</td>
+      <td>Arduino IDE (<code>.ino</code> + <code>.h</code>) in <code>arduino/</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Balancing Controller</strong></td>
+      <td><strong>200 Hz Active PID</strong> + Pitch Estimator + Height Gain Scheduling.</td>
+      <td><span class="tag-danger">DISABLED</span> <code>VALIDATED = false</code>, gains set to 0.0.</td>
+    </tr>
+    <tr>
+      <td><strong>Stepper Motor Generation</strong></td>
+      <td>Hardware Timer3 &amp; Timer4 CTC Interrupts (Up to <strong>24,000 steps/s</strong>).</td>
+      <td>Polled <code>AccelStepper</code> library in <code>loop()</code> (&lt; 2,000 steps/s).</td>
+    </tr>
+    <tr>
+      <td><strong>Servo Control (6x MG995)</strong></td>
+      <td>Direct ATmega2560 Timer5 PWM Pins (Pins 44, 45, 46, 11, 12, 38).</td>
+      <td>External <strong>PCA9685 I2C Board</strong> over Pins 20/21.</td>
+    </tr>
+    <tr>
+      <td><strong>Serial Protocol</strong></td>
+      <td>Binary Framed Packets + CCITT-16 CRC @ <strong>250,000 baud</strong>.</td>
+      <td>ASCII text strings (e.g. <code>STATUS,42\n</code>) @ <strong>115,200 baud</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>Supervisor Platform</strong></td>
+      <td>FastAPI + WebSockets + Three.js 3D Web HUD (Pi 4/5).</td>
+      <td>Basic Python 3 blocking script logging to CSV (Pi Zero W).</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- SECTION 2: PINOUT COLLISIONS -->
+<div class="page-break"></div>
+<h2>2. Electrical &amp; Pin Mapping Clashes (Fatal Hardware Risk)</h2>
+<p>This is the most critical conflict. If the physical wiring on the robot does not match the exact firmware flashed to the Arduino Mega 2560, hardware components will be damaged.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 12%;">Mega Pin</th>
+      <th style="width: 25%;"><code>main</code> Function</th>
+      <th style="width: 25%;"><code>feature</code> Function</th>
+      <th style="width: 38%;">Electrical Collision Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Pin 2</strong></td>
+      <td><span class="tag-danger">Hardware E-STOP</span> (Input, Pull-up)</td>
+      <td><strong>STEP 1</strong> (Motor 1 Step Pulse Output)</td>
+      <td>Pulses on Pin 2 trigger infinite E-STOP trips on Main; Grounding Pin 2 shorts driver output on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 3</strong></td>
+      <td>Unassigned / Free</td>
+      <td><strong>DIR 1</strong> (Motor 1 Direction Output)</td>
+      <td>Motor 1 direction line left floating on Main.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 4</strong></td>
+      <td><span class="tag-warning">Global Stepper Enable</span> (Active LOW)</td>
+      <td><strong>STEP 2</strong> (Motor 2 Step Pulse Output)</td>
+      <td>Step pulses toggle driver enable thousands of times per second; severe coil chatter and driver burnout.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 5</strong></td>
+      <td><strong>Left Stepper STEP</strong> (Timer3 CTC)</td>
+      <td><strong>DIR 2</strong> (Motor 2 Direction Output)</td>
+      <td>Frequency pulse interpreted as direction toggles; motor vibrates in place.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 6</strong></td>
+      <td><strong>Left Stepper DIR</strong> (Digital Out)</td>
+      <td><strong>ENABLE 1</strong> (Motor 1 Enable Output)</td>
+      <td>Direction bit cuts power to motor driver instead of setting forward/reverse.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 7</strong></td>
+      <td><strong>Right Stepper STEP</strong> (Timer4 CTC)</td>
+      <td><strong>ENABLE 2</strong> (Motor 2 Enable Output)</td>
+      <td>Pulse bursts enable and disable Motor 2 continuously.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 8</strong></td>
+      <td><strong>Right Stepper DIR</strong> (Digital Out)</td>
+      <td>Unassigned / Free</td>
+      <td>Right wheel direction line unassigned on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 11</strong></td>
+      <td><strong>Right Hip Roll Servo</strong> (Timer5 PWM)</td>
+      <td>Unassigned / Free</td>
+      <td>Right hip servo completely unresponsive on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 12</strong></td>
+      <td><strong>Right Hip Pitch Servo</strong> (Timer5 PWM)</td>
+      <td>Unassigned / Free</td>
+      <td>Right thigh servo completely unresponsive on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 20 / 21</strong></td>
+      <td>MPU-6050 I2C (SDA / SCL)</td>
+      <td>MPU-6050 + <strong>PCA9685 I2C Board</strong></td>
+      <td>Feature cannot move ANY servos unless PCA9685 expander is physically present on I2C bus.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin 38</strong></td>
+      <td><strong>Right Knee Servo</strong> (PWM)</td>
+      <td>Unassigned / Free</td>
+      <td>Right knee servo unresponsive on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pins 44, 45, 46</strong></td>
+      <td><strong>Left Hip Roll, Pitch, Knee Servos</strong></td>
+      <td>Unassigned / Free</td>
+      <td>Left leg servos completely unresponsive on Feature.</td>
+    </tr>
+    <tr>
+      <td><strong>Pin A0</strong></td>
+      <td><strong>Battery Voltage Divider ADC</strong></td>
+      <td>Unassigned / Free</td>
+      <td>Main reads 3S LiPo voltage for cutoff protection; Feature has no voltage sensing.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- SECTION 3: PROTOCOL & SERIAL MISMATCH -->
+<h2>3. Communication &amp; Serial Protocol Incompatibility</h2>
+<p>Connecting the Raspberry Pi backend from <code>main</code> to the Arduino Mega running <code>feature</code> (or vice versa) results in absolute communication breakdown:</p>
+
+<ul>
+  <li><strong>Baud Rate:</strong> <code>main</code> communicates at <strong>250,000 baud</strong>. <code>feature</code> communicates at <strong>115,200 baud</strong>.</li>
+  <li><strong>Framing:</strong> <code>main</code> uses a strict 8-byte framed binary packet with <code>0xAA 0x55</code> sync header, message sequence number, message type ID, variable payload, and 16-bit CCITT CRC checksum.</li>
+  <li><code>feature</code> sends plaintext ASCII terminated by newline: <code>STATUS,42\n</code>, <code>STAND,1\n</code>, <code>STOP,1\n</code>.</li>
+  <li><strong>Result:</strong> Neither side can decode a single frame from the other.</li>
+</ul>
+
+<!-- SECTION 4: INCONSISTENCIES RESOLVED IN MAIN -->
+<h2>4. Inconsistencies &amp; Legacy Artifacts Cleaned in <code>main</code></h2>
+<p>During this comprehensive audit, three legacy contradictions inside the <code>main</code> repository were identified and resolved:</p>
+
+<ol>
+  <li><strong>Port 8000 Conflict (Resolved):</strong> Port 8000 was completely freed from the supervisor, Web UI, scripts, and mock servers. The entire stack is now standardized on <strong>Port 3456</strong>.</li>
+  <li><strong>Web-UI WebSocket Crash Bug (Resolved):</strong> Fixed an undeclared <code>protocol</code> variable reference in <code>robot/web-ui/js/api.js</code> line 79 that prevented the teleoperation command loop from initializing.</li>
+  <li><strong>Missing Pin 12 in Documentation (Resolved):</strong> Added the missing <code>SERVO 5 (Pin 12) - Right Hip Pitch</code> row to the canonical wiring table in <code>robot/README.md</code>.</li>
+  <li><strong>Obsolete ESP32 Document (Deprecated):</strong> Added a prominent warning banner to <code>README_RASPBERRY_PI.md</code> to clarify that Chintu runs on Arduino Mega 2560 + Raspberry Pi, not the obsolete ESP32/L298N prototype.</li>
+</ol>
+
+<!-- SECTION 5: STEP BY STEP DEPLOYMENT -->
+<div class="page-break"></div>
+<h2>5. Step-by-Step Operator Runbook (Physical Deployment)</h2>
+
+<h3>Phase 1: Flash Arduino Mega 2560 Firmware</h3>
+<pre>
+cd robot/firmware
+pio run -e megaatmega2560 --target upload
+</pre>
+
+<h3>Phase 2: Supervisor Setup on Raspberry Pi</h3>
+<pre>
+cd robot/backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Create /etc/chintu.env with secure credentials:
+sudo bash scripts/install_env.sh
+
+# Start Supervisor Daemon:
+python3 -m backend.server
+</pre>
+
+<h3>Phase 3: Connect to Web Teleoperation HUD</h3>
+<ul>
+  <li>Connect your phone/laptop to the robot network:
+    <ul>
+      <li><strong>Hotspot Mode:</strong> Connect to Wi-Fi <code>ChintuRobot_XXXX</code> &rarr; Open <code>http://192.168.4.1:3456</code></li>
+      <li><strong>Local Wi-Fi Mode:</strong> Open <code>http://&lt;RaspberryPi_IP&gt;:3456</code></li>
+      <li><strong>Local PC Simulation:</strong> Run <code>python robot/tools/mock_ws_server.py</code> &rarr; Open <code>http://localhost:3456</code></li>
+    </ul>
+  </li>
+  <li>Enter your 32-character <code>ROBOT_AUTH_TOKEN</code> in the security modal.</li>
+</ul>
+
+<h3>Phase 4: Bench Stand Pre-Flight (Hawa Me Test)</h3>
+<div class="alert alert-warning">
+  <strong>MANDATORY TEST:</strong> Always support the robot on a bench stand with wheels suspended off the ground for initial arming. Never place it directly on the floor without verifying wheel direction!
+</div>
+<ol>
+  <li>Check <strong>Calibrate</strong> tab in HUD: Ensure hip and knee joints are centered at neutral 90&deg;.</li>
+  <li>Hold robot vertical ($0^\circ \pm 5^\circ$).</li>
+  <li>Perform <strong>SLIDE TO ARM ROBOT &gt;&gt;</strong> gesture on dashboard.</li>
+  <li>Hold stationary for 2.0 seconds while gyro bias calibrates &rarr; State transitions to <code>ARMED</code>.</li>
+  <li>Tilt robot forward: Wheels must spin forward to balance. Tilt back: Wheels must spin backward.</li>
+</ol>
+
+---
+
+<h2>6. Final Engineering Verdict</h2>
+<ul>
+  <li><strong>Base Repository:</strong> Keep <code>chintutherobo</code> (<code>main</code>) as the sole production baseline. It has the complete real-time balance loop, high-speed ISR stepper engine, and web teleoperation interface.</li>
+  <li><strong>Scaffold Repository:</strong> Keep <code>chintu-defence-bot</code> in its separate folder. Do not merge its files into <code>main</code>. Use its unit sketches (<code>arduino/tests/</code>) strictly for isolated bench checks of individual sensors, updating the pins to match <code>main</code>'s <code>config.h</code>.</li>
+</ul>
+
+</body>
+</html>
+

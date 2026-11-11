@@ -11,8 +11,8 @@ start /B wsl python3 /mnt/c/Users/Robodroide/Desktop/chintu/chintutherobo/robot/
 timeout /t 2 >nul
 
 :: Open dashboard in default browser
-echo Opening Dashboard at http://localhost:8000 ...
-start http://localhost:8000
+echo Opening Dashboard at http://localhost:3456 ...
+start http://localhost:3456
 
 echo.
 echo ========================================================

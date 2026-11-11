@@ -5,6 +5,23 @@ This document is the authoritative step-by-step field runbook for deploying, cal
 
 ---
 
+## 🎯 Master Deployment Matrix (Kaunsa Code Kis Device me Jayega)
+
+| Target Hardware Device | Which Repository / Folder | Which Git Branch | Purpose & What It Runs | Exact Flashing / Running Command |
+|---|---|---|---|---|
+| **Arduino Mega 2560** (Real-Time Controller) | `chintutherobo/robot/firmware/` | **`main`** | 200 Hz PID Self-Balance, Timer3/4 Stepper ISR, 6x Servo IK, MPU-6050, E-Stop | Open with PlatformIO in VS Code & click **Upload**, or: `pio run -e megaatmega2560 --target upload` |
+| **Raspberry Pi 4 / 5** (Host Supervisor & Server) | `chintutherobo/robot/` (`backend/` + `web-ui/`) | **`main`** | FastAPI REST & WebSocket Server, 300ms Watchdog, Token Auth, Hotspot, Telemetry | Run `bash scripts/install_env.sh`, then: `python3 -m backend.server` (Port 3456) |
+| **Operator Phone / Laptop** (Dashboard Controller)| No software installation needed | — | Web Teleoperation HUD, Virtual Joystick, 3D Digital Twin, Height Slider, E-Stop | Open Chrome / Safari at: `http://<PI_IP>:3456` (or `http://192.168.4.1:3456`) |
+| *(Optional Bench Test)* **Arduino Mega 2560** | `chintu-defence-bot/arduino/tests/` | **`feature/chintu-defence-bot`** | Single motor / sensor unit test only (NO balance, NO dashboard) | Open isolated test `.ino` sketch in Arduino IDE & upload |
+
+> [!IMPORTANT]
+> **GOLDEN RULE FOR PHYSICAL ROBOT OPERATION:**
+> - Robot ko balance aur dashboard se chalane ke liye **SIRF aur SIRF `main` branch (`chintutherobo`)** ka code use hoga.
+> - Raspberry Pi par `chintu-defence-bot` ka code **kabhi mat daalna** (kyunki usme Web HUD aur WebSocket nahi hai).
+> - Dono repos ke files ko aapas me mix ya overwrite mat karna.
+
+---
+
 ## 📑 Table of Contents
 1. [System Architecture & Wiring Summary](#1-system-architecture--wiring-summary)
 2. [Phase 1: Flash Arduino Mega 2560 Firmware](#phase-1-flash-arduino-mega-2560-firmware)
@@ -185,7 +202,7 @@ ROBOT_AUTH_TOKEN="Aapka_Generated_32_Character_Token_Yahan"
 ROBOT_SERIAL_PORT=/dev/ttyACM0
 ROBOT_SERIAL_BAUD=250000
 ROBOT_HOST=0.0.0.0
-ROBOT_PORT=8765
+ROBOT_PORT=3456
 ```
 
 ### Step 2.5: Connect Arduino USB to Raspberry Pi
@@ -219,7 +236,7 @@ sudo systemctl status chintu.service
 ## Phase 3: Web Dashboard Access & Authentication
 
 ```
-[ Mobile / Laptop ] ──── Wi-Fi ────> [ Raspberry Pi (192.168.4.1:8765) ]
+[ Mobile / Laptop ] ──── Wi-Fi ────> [ Raspberry Pi (192.168.4.1:3456) ]
 ```
 
 1. **Connect to Wi-Fi:**
@@ -227,7 +244,7 @@ sudo systemctl status chintu.service
    - Agar Home Wi-Fi par hain: Make sure laptop/phone aur Pi same router par hain.
 2. **Open Browser:**
    - Chrome / Firefox / Safari me navigate karein:
-     `http://192.168.4.1:8765` (ya `http://<Raspberry_Pi_IP>:8765`)
+     `http://192.168.4.1:3456` (ya `http://<Raspberry_Pi_IP>:3456`)
 3. **Enter Token:**
    - Dashboard aate hi ek **Supervisor Authentication Modal** pop-up hoga.
    - Apna `ROBOT_AUTH_TOKEN` paste karein aur **CONNECT** click karein.

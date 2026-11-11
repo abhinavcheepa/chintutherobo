@@ -17,7 +17,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const { WebSocketServer } = require('ws');
 
-const PORT = parseInt(process.env.PORT || '8000', 10);
+const PORT = parseInt(process.env.PORT || '3456', 10);
 const WEB_UI_DIR = path.join(__dirname, 'robot', 'web-ui');
 
 // MIME types mapping

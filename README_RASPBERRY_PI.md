@@ -1,7 +1,9 @@
-# 🍓 Chintu Robot — Raspberry Pi Connection & Setup Guide
-## (रास्पबेरी पाई से कनेक्ट और सेटअप करने की पूरी गाइड)
+# 🍓 Chintu Robot — Raspberry Pi Connection & Setup Guide (LEGACY / DEPRECATED)
 
-यह गाइड आपको **Chintu (Two-Wheeled Legged Robot)** को **Raspberry Pi** के साथ पूरी तरह कनेक्ट और रन करने का पूरा तरीका बताती है।
+> [!WARNING]
+> **DEPRECATED / PURANA PROTOTYPE DOC:**
+> Yeh document ek purane experimental ESP32 + L298N prototype ke liye likha gaya tha. Chintu robot ka **asli production stack Arduino Mega 2560 + Raspberry Pi 4/5** par based hai.
+> Kripya is document ko follow na karein — asli runbook ke liye **[PHYSICAL_DEPLOYMENT_GUIDE.md](./PHYSICAL_DEPLOYMENT_GUIDE.md)** aur **[robot/README.md](./robot/README.md)** dekhein.
 
 ---
 

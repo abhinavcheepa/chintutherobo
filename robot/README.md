@@ -9,7 +9,7 @@ A production-grade, distributed embedded robotics stack for a two-legged self-ba
 ```
 [ Web Browser PWA (Phone / Tablet) ]
              ▲
-             │ Wi-Fi Hotspot (192.168.4.1:8765) / WebSocket JSON (20-50 Hz)
+             │ Wi-Fi Hotspot (192.168.4.1:3456) / WebSocket JSON (20-50 Hz)
              ▼
 [ Raspberry Pi Supervisor (FastAPI + Asyncio) ]
              ▲
@@ -41,6 +41,7 @@ A production-grade, distributed embedded robotics stack for a two-legged self-ba
 | **Left Hip Pitch**| SERVO 2 | **Pin 45** | Output (Timer5 PWM) | MG995 Thigh Flexion |
 | **Left Knee** | SERVO 3 | **Pin 46** | Output (Timer5 PWM) | MG995 Knee Flexion |
 | **Right Hip Roll**| SERVO 4 | **Pin 11** | Output (Timer5 PWM) | MG995 Lateral Roll |
+| **Right Hip Pitch**| SERVO 5 | **Pin 12** | Output (Timer5 PWM) | MG995 Thigh Flexion |
 | **Right Knee** | SERVO 6 | **Pin 38** | Output (PWM) | MG995 Knee Flexion *(NEEDS PHYSICAL WIRING CHECK: Pin 13 is onboard LED)* |
 | **Status LED** | LED | **Pin 13** | Output (Digital) | ATmega2560 Onboard Status Indicator |
 | **Hardware E-STOP**| ESTOP | **Pin 2** | Input (Pull-up) | Normally closed to GND; trip on open |
@@ -132,7 +133,7 @@ sudo systemctl enable --now chintu.service
    - **SSID:** `ChintuRobot_XXXX` (where XXXX is derived from MAC address)
    - **Password:** `<dynamic passphrase printed by setup_hotspot.sh>`
 3. Open your mobile browser and navigate to:
-   - `http://192.168.4.1:8765` (or `http://chintu.robot:8765`)
+   - `http://192.168.4.1:3456` (or `http://chintu.robot:3456`)
 4. Verify the connection badge shows `ONLINE`.
 5. Hold the robot upright at vertical balance ($0^\circ$).
 6. Click **ARM ROBOT**. The robot will enter `CALIBRATING` for 2 seconds to zero gyro biases and then transition to `ARMED`.
