@@ -147,6 +147,7 @@ void setup() {
 
 void loop() {
   comm.poll(onCommand);
+  safety.checkEstop();
   const unsigned long nowUs = micros();
 
   if ((unsigned long)(nowUs - lastControlUs) >= CONTROL_PERIOD_US) {

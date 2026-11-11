@@ -4,9 +4,11 @@
 
 class StepperManager {
  public:
-  // Proposed example pins; verify driver/shield compatibility before wiring.
-  static const uint8_t STEP1 = 2, DIR1 = 3, STEP2 = 4, DIR2 = 5;
-  static const uint8_t ENABLE1 = 6, ENABLE2 = 7;
+  // Canonical Arduino Mega 2560 pin allocation matching main (chintutherobo):
+  // Left Stepper (Motor 1) on Timer3, Right Stepper (Motor 2) on Timer4
+  static const uint8_t STEP1 = 5, DIR1 = 6;
+  static const uint8_t STEP2 = 7, DIR2 = 8;
+  static const uint8_t ENABLE1 = 4, ENABLE2 = 4; // Shared Active-LOW Stepper Enable
 
   bool begin() {
     motor1_ = new AccelStepper(AccelStepper::DRIVER, STEP1, DIR1);

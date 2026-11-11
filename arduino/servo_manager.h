@@ -1,25 +1,48 @@
 #pragma once
 #include <Arduino.h>
 #include <Wire.h>
+#include <Servo.h>
 #include <Adafruit_PWMServoDriver.h>
 
 class ServoManager {
  public:
   static const uint8_t SERVO_COUNT = 6;
   static const uint8_t FIRST_CHANNEL = 0;
-  // These conservative pulse values are examples only. Calibrate each servo/linkage.
+  // Canonical Arduino Mega 2560 direct pins matching main branch:
+  // Left: Hip Roll (44), Hip Pitch (45), Knee (46)
+  // Right: Hip Roll (11), Hip Pitch (12), Knee (38)
+  const uint8_t directPins_[SERVO_COUNT] = {44, 45, 46, 11, 12, 38};
+
   static const uint16_t DEFAULT_MIN_US = 1000;
   static const uint16_t DEFAULT_MAX_US = 2000;
 
   bool begin() {
-    connected_ = pwm_.begin();
-    if (connected_) pwm_.setPWMFreq(50);
+    // 1. Probe for external PCA9685 expander at I2C address 0x40
+    Wire.beginTransmission(0x40);
+    byte i2cErr = Wire.endTransmission();
+    if (i2cErr == 0) {
+      connected_ = pwm_.begin();
+      if (connected_) {
+        pwm_.setPWMFreq(50);
+        useDirect_ = false;
+      }
+    }
+
+    // 2. If no PCA9685 board is connected, fallback to direct Mega 2560 pins
+    if (!connected_) {
+      for (uint8_t i = 0; i < SERVO_COUNT; ++i) {
+        directServos_[i].attach(directPins_[i], DEFAULT_MIN_US, DEFAULT_MAX_US);
+      }
+      useDirect_ = true;
+      connected_ = true;
+    }
+
     for (uint8_t i = 0; i < SERVO_COUNT; ++i) {
       minUs_[i] = DEFAULT_MIN_US;
       maxUs_[i] = DEFAULT_MAX_US;
       targetUs_[i] = 1500;
       currentUs_[i] = 1500;
-      configured_[i] = false; // no physical joint map assumed
+      configured_[i] = false;
     }
     return connected_;
   }
@@ -49,8 +72,6 @@ class ServoManager {
   }
 
   void requestStandingPose() {
-    // Deliberately does not invent a standing pose. Targets must be configured
-    // by calibrated hardware-specific values before this can move any servo.
     if (!standingPoseConfigured()) return;
     for (uint8_t i = 0; i < SERVO_COUNT; ++i) targetUs_[i] = neutralUs_[i];
   }
@@ -72,17 +93,22 @@ class ServoManager {
         uint16_t next = (currentUs_[i] >= 5) ? currentUs_[i] - 5 : 0;
         currentUs_[i] = (next < targetUs_[i]) ? targetUs_[i] : next;
       }
-      pwm_.writeMicroseconds(FIRST_CHANNEL + i, currentUs_[i]);
+      if (useDirect_) {
+        directServos_[i].writeMicroseconds(currentUs_[i]);
+      } else {
+        pwm_.writeMicroseconds(FIRST_CHANNEL + i, currentUs_[i]);
+      }
     }
   }
 
   void stopCommanding() {
-    // Hold current commanded positions; do not blindly detach torque.
     for (uint8_t i = 0; i < SERVO_COUNT; ++i) targetUs_[i] = currentUs_[i];
   }
 
  private:
   Adafruit_PWMServoDriver pwm_ = Adafruit_PWMServoDriver(0x40);
+  Servo directServos_[SERVO_COUNT];
+  bool useDirect_ = true;
   bool connected_ = false;
   uint16_t minUs_[SERVO_COUNT], maxUs_[SERVO_COUNT];
   uint16_t targetUs_[SERVO_COUNT], currentUs_[SERVO_COUNT];

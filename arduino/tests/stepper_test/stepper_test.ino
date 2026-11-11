@@ -1,6 +1,7 @@
 #include <AccelStepper.h>
-// Verify pins and driver polarity against your exact driver wiring.
-const uint8_t STEP_PIN = 2, DIR_PIN = 3, ENABLE_PIN = 6;
+// Canonical Mega 2560 stepper pins matching main branch:
+// Left Stepper: STEP 5, DIR 6, EN 4. (Right Stepper: STEP 7, DIR 8, EN 4)
+const uint8_t STEP_PIN = 5, DIR_PIN = 6, ENABLE_PIN = 4;
 AccelStepper motor(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 bool authorized = false;
 void setup() {

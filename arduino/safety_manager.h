@@ -9,14 +9,25 @@ enum FaultCode {
   FAULT_STEPPER_CONFIG,
   FAULT_IMU_READ,
   FAULT_IMU_TILT,
-  FAULT_COMM_TIMEOUT
+  FAULT_COMM_TIMEOUT,
+  FAULT_ESTOP
 };
 
 class SafetyManager {
  public:
-  void begin() { fault_ = FAULT_NONE; }
+  static const uint8_t ESTOP_PIN = 2; // Canonical Mega 2560 Hardware E-STOP Pin
+
+  void begin() { 
+    fault_ = FAULT_NONE; 
+    pinMode(ESTOP_PIN, INPUT_PULLUP);
+  }
   bool hasFault() const { return fault_ != FAULT_NONE; }
   void raiseFault(FaultCode f) { if (fault_ == FAULT_NONE) fault_ = f; }
+  void checkEstop() {
+    if (digitalRead(ESTOP_PIN) == LOW) {
+      raiseFault(FAULT_ESTOP);
+    }
+  }
   const char* faultName() const {
     switch (fault_) {
       case FAULT_IMU: return "IMU_INIT";
@@ -25,6 +36,7 @@ class SafetyManager {
       case FAULT_IMU_READ: return "IMU_READ";
       case FAULT_IMU_TILT: return "TILT_LIMIT";
       case FAULT_COMM_TIMEOUT: return "COMM_TIMEOUT";
+      case FAULT_ESTOP: return "ESTOP_TRIGGERED";
       default: return "NONE";
     }
   }
